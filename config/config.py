@@ -23,8 +23,16 @@ class Config:
     NEWS_SOURCES = ['reuters', 'bloomberg', 'cnbc', 'marketwatch']
     NEWS_KEYWORDS = ['stock market', 'earnings', 'financial news']
     
-    # Data collection settings
-    DATA_DAYS_BACK = 7
+    # Timeline settings
+    DEFAULT_NEWS_DAYS_BACK = 7
+    DEFAULT_REDDIT_TIME_FILTER = 'day'  # 'hour', 'day', 'week', 'month', 'year', 'all'
+    
+    # Breaking news settings (very recent)
+    BREAKING_NEWS_HOURS = 6
+    RECENT_REDDIT_HOURS = 12
+    
+    # Historical analysis
+    MAX_DAYS_BACK = 30  # NewsAPI free plan limit
     
     @staticmethod
     def validate_config():
