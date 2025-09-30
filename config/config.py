@@ -24,7 +24,7 @@ class Config:
     NEWS_KEYWORDS = ['stock market', 'earnings', 'financial news']
     
     # Timeline settings
-    DEFAULT_NEWS_DAYS_BACK = 7
+    DEFAULT_NEWS_DAYS_BACK = 30
     DEFAULT_REDDIT_TIME_FILTER = 'day'  # 'hour', 'day', 'week', 'month', 'year', 'all'
     
     # Breaking news settings (very recent)

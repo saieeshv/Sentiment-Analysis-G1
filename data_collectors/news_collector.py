@@ -73,9 +73,12 @@ class NewsCollector:
 
         return text
 
-    def collect_financial_news(self, days_back: int = 1) -> pd.DataFrame:
+    def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK) -> pd.DataFrame:
         """Collect general financial news with cleaned title + content"""
+        # Clamp to MAX_DAYS_BACK because NewsAPI free plan only allows up to 30 days
+        days_back = min(days_back, Config.MAX_DAYS_BACK)
         from_date = datetime.now() - timedelta(days=days_back)
+
         url = f"{self.base_url}/everything"
         params = {
             'apiKey': self.api_key,
@@ -105,12 +108,13 @@ class NewsCollector:
                     'collected_at': datetime.now()
                 })
 
-            self.logger.info(f"📰 Collected {len(news_data)} financial news articles")
+            self.logger.info(f"📰 Collected {len(news_data)} financial news articles from the past {days_back} days")
             return pd.DataFrame(news_data)
 
         except Exception as e:
             self.logger.error(f"❌ Error collecting financial news: {str(e)}")
             return pd.DataFrame()
+
 
     def collect_ticker_news(self, tickers: List[str]) -> pd.DataFrame:
         """Collect ticker-specific news with cleaned title + content"""
