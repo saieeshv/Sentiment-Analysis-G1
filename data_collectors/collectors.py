@@ -18,7 +18,10 @@ def collect_all_data():
     # Initialize collectors
     yf_collector = YFinanceCollector(tickers)
     reddit_collector = RedditCollector()
-    news_collector = NewsCollector()
+    
+    # Two separate NewsCollector instances
+    news_collector_newsapi = NewsCollector(source="newsapi")
+    news_collector_er = NewsCollector(source="eventregistry")
 
     # Collect data
     logger.info("📊 Collecting stock data...")
@@ -30,8 +33,13 @@ def collect_all_data():
     ticker_mentions = reddit_collector.search_tickers_last_month(tickers)
 
     logger.info("📰 Collecting news data...")
-    financial_news = news_collector.collect_financial_news()
-    ticker_news = news_collector.collect_ticker_news(tickers)
+    financial_news_newsapi = news_collector_newsapi.collect_financial_news()
+    financial_news_er = news_collector_er.collect_financial_news(max_results=1000)
+    financial_news = pd.concat([financial_news_newsapi, financial_news_er], ignore_index=True)
+
+    ticker_news_newsapi = news_collector_newsapi.collect_ticker_news(tickers)
+    ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=500)
+    ticker_news = pd.concat([ticker_news_newsapi, ticker_news_er], ignore_index=True)
 
     # Save data
     logger.info("💾 Saving collected data...")
@@ -46,15 +54,24 @@ def collect_all_data():
 
     if not financial_news.empty:
         news_file = processor.save_data(financial_news, "financial_news")
-        logger.info(f"📁 Saved financial news: {news_file}")
+        logger.info(f"📁 Saved financial news (NewsAPI + Event Registry): {news_file}")
 
     if not ticker_news.empty:
         ticker_news_file = processor.save_data(ticker_news, "ticker_news")
-        logger.info(f"📁 Saved ticker news: {ticker_news_file}")
+        logger.info(f"📁 Saved ticker news (NewsAPI + Event Registry): {ticker_news_file}")
 
     # Combine for sentiment analysis
-    combined_reddit = pd.concat([reddit_posts, ticker_mentions], ignore_index=True) if not reddit_posts.empty and not ticker_mentions.empty else reddit_posts if not reddit_posts.empty else ticker_mentions
-    combined_news = pd.concat([financial_news, ticker_news], ignore_index=True) if not financial_news.empty and not ticker_news.empty else financial_news if not financial_news.empty else ticker_news
+    combined_reddit = (
+        pd.concat([reddit_posts, ticker_mentions], ignore_index=True)
+        if not reddit_posts.empty and not ticker_mentions.empty
+        else reddit_posts if not reddit_posts.empty else ticker_mentions
+    )
+
+    combined_news = (
+        pd.concat([financial_news, ticker_news], ignore_index=True)
+        if not financial_news.empty and not ticker_news.empty
+        else financial_news if not financial_news.empty else ticker_news
+    )
 
     if not combined_reddit.empty or not combined_news.empty:
         text_data = processor.combine_text_data(combined_reddit, combined_news)
