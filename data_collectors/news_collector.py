@@ -74,46 +74,54 @@ class NewsCollector:
         return text
 
     def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK) -> pd.DataFrame:
-        """Collect general financial news with cleaned title + content"""
-        # Clamp to MAX_DAYS_BACK because NewsAPI free plan only allows up to 30 days
+        """Collect general financial news with cleaned title + content (auto-pagination)"""
         days_back = min(days_back, Config.MAX_DAYS_BACK)
         from_date = datetime.now() - timedelta(days=days_back)
 
-        url = f"{self.base_url}/everything"
-        params = {
-            'apiKey': self.api_key,
-            'q': 'stock market OR financial news OR earnings',
-            'from': from_date.strftime('%Y-%m-%d'),
-            'language': 'en',
-            'sortBy': 'publishedAt',
-            'pageSize': 100
-        }
-        try:
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            articles = response.json().get('articles', [])
-            news_data = []
+        all_articles = []
+        page = 1
 
-            for article in articles:
-                content = self._fetch_summary(article.get('url'))
-                if not content:
-                    content = self._clean_fallback_content(article.get('content'))
+        while True:
+            url = f"{self.base_url}/everything"
+            params = {
+                'apiKey': self.api_key,
+                'q': 'stock market OR financial news OR earnings',
+                'from': from_date.strftime('%Y-%m-%d'),
+                'language': 'en',
+                'sortBy': 'publishedAt',
+                'pageSize': 100,   # max allowed per request
+                'page': page
+            }
+            try:
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                articles = response.json().get('articles', [])
 
-                news_data.append({
-                    'title': article.get('title'),
-                    'content': content,
-                    'source': article.get('source', {}).get('name'),
-                    'published_at': article.get('publishedAt'),
-                    'url': article.get('url'),
-                    'collected_at': datetime.now()
-                })
+                if not articles:  # stop if no more results
+                    break
 
-            self.logger.info(f"📰 Collected {len(news_data)} financial news articles from the past {days_back} days")
-            return pd.DataFrame(news_data)
+                for article in articles:
+                    content = self._fetch_summary(article.get('url'))
+                    if not content:
+                        content = self._clean_fallback_content(article.get('content'))
 
-        except Exception as e:
-            self.logger.error(f"❌ Error collecting financial news: {str(e)}")
-            return pd.DataFrame()
+                    all_articles.append({
+                        'title': article.get('title'),
+                        'content': content,
+                        'source': article.get('source', {}).get('name'),
+                        'published_at': article.get('publishedAt'),
+                        'url': article.get('url'),
+                        'collected_at': datetime.now()
+                    })
+
+                self.logger.info(f"📰 Collected {len(articles)} articles from page {page}")
+                page += 1  # move to next page
+
+            except Exception as e:
+                self.logger.error(f"❌ Error collecting financial news: {str(e)}")
+                break
+
+        return pd.DataFrame(all_articles)
 
 
     def collect_ticker_news(self, tickers: List[str]) -> pd.DataFrame:
