@@ -37,6 +37,7 @@ def collect_all_data():
     financial_news_er = news_collector_er.collect_financial_news(max_results=1000)
     financial_news = pd.concat([financial_news_newsapi, financial_news_er], ignore_index=True)
 
+    logger.info("📰 Collecting ticker news data...")
     ticker_news_newsapi = news_collector_newsapi.collect_ticker_news(tickers)
     ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=500)
     ticker_news = pd.concat([ticker_news_newsapi, ticker_news_er], ignore_index=True)
