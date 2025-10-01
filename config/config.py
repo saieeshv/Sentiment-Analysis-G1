@@ -17,7 +17,7 @@ class Config:
     DEFAULT_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'NVDA', 'META', 'NFLX']
     
     # Reddit settings
-    REDDIT_SUBREDDITS = ['GrowthStocks', 'investing', 'stocks', 'SecurityAnalysis']
+    REDDIT_SUBREDDITS = ['GrowthStocks', 'investing', 'stocks', 'SecurityAnalysis', 'wallstreetbets']
     REDDIT_POST_LIMIT = 50
     
     # News settings
