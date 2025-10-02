@@ -8,6 +8,9 @@ from newspaper import Article
 from bs4 import BeautifulSoup
 import re
 import nltk
+import sys
+import time
+import random
 
 
 # Ensure required NLTK corpora are downloaded
@@ -54,38 +57,130 @@ class NewsCollector:
             self.logger.error(f"❌ {self.source} connection failed: {str(e)}")
             return False
 
-    def _fetch_summary(self, url: str, existing_content: str = None) -> Optional[str]:
-        """Fast content extraction - use existing content if available"""
-        # For Event Registry, use the 'body' field which often contains good content
-        if existing_content and len(existing_content) > 100:
-            return existing_content[:1000]  # Use first 1000 chars
-        
-        # Only try newspaper for high-value sources
-        trusted_sources = ['reuters.com', 'bloomberg.com', 'wsj.com', 'ft.com', 'cnbc.com']
-        if any(source in url for source in trusted_sources):
-            return self._fetch_summary(url)
-        
-        return existing_content  # Return whatever we have
-
+    def _fetch_summary(self, url: str) -> Optional[str]:
+        """Fetch summary with recursion protection, 403 error avoidance, and timeout handling"""
+        try:
+            # Skip known problematic domains immediately
+            problematic_domains = [
+                'thecambodianews.net', 'bna.bh', 'forbes.com', 'mybroadband.co.za',
+                'webhostingtalk.com', 'morningstar.com', 'citizen.co.za',
+                'globenewswire.com', 'biztoc.com', 'slickdeals.net'
+            ]
+            if any(domain in url for domain in problematic_domains):
+                return None
+            
+            # Set strict recursion limit to prevent stack overflow
+            original_limit = sys.getrecursionlimit()
+            sys.setrecursionlimit(200)  # Very low limit to prevent recursion
+            
+            # Add random delay to avoid rate limiting
+            time.sleep(random.uniform(0.5, 1.5))
+            
+            # FIXED: Import newspaper's Config class properly to avoid naming conflict
+            from newspaper import Config as NewspaperConfig
+            
+            # Configure newspaper with realistic browser headers
+            config = NewspaperConfig()
+            config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+            config.request_timeout = 8
+            config.number_threads = 1
+            config.verbose = False
+            config.fetch_images = False
+            config.memoize_articles = False
+            
+            # Anti-bot detection headers
+            config.headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
+                'DNT': '1'
+            }
+            
+            article = Article(url, config=config)
+            article.download()
+            article.parse()
+            
+            # Get content without NLP processing to avoid recursion
+            content = None
+            if article.text and len(article.text.strip()) > 50:
+                content = article.text[:800]  # Limit content length
+            elif article.meta_description:
+                content = article.meta_description
+            elif hasattr(article, 'summary') and article.summary:
+                content = article.summary[:800]
+                
+            # Restore original recursion limit
+            sys.setrecursionlimit(original_limit)
+            return content
+            
+        except RecursionError:
+            sys.setrecursionlimit(original_limit)
+            return None
+        except Exception as e:
+            sys.setrecursionlimit(original_limit)
+            # Only log unexpected errors, skip common 403/timeout errors
+            error_str = str(e).lower()
+            if not any(term in error_str for term in ['403', 'forbidden', 'timeout', 'connection', 'get_parser']):
+                self.logger.warning(f"⚠️ Unexpected error fetching {url}: {str(e)}")
+            return None
 
     def _clean_fallback_content(self, raw_text: str) -> str:
-        """Clean fallback content"""
+        """Enhanced fallback content cleaning without recursion risks"""
         if not raw_text:
             return ""
+        
+        try:
+            # Use simple regex instead of BeautifulSoup to avoid recursion
+            # Remove HTML tags
+            text = re.sub(r'<[^>]+>', ' ', raw_text)
+            
+            # Clean up entities and special characters
+            text = re.sub(r'&[a-zA-Z0-9#]+;', ' ', text)
+            text = re.sub(r'\{[^}]*\}', '', text)
+            
+            # Remove boilerplate patterns
+            boilerplate_patterns = [
+                r'Read more.*?$', r'Click here.*?$', r'Subscribe.*?$',
+                r'Advertisement.*?$', r'Related:.*?$', r'Continue reading.*?$',
+                r'Share this.*?$', r'Follow us.*?$'
+            ]
+            for pattern in boilerplate_patterns:
+                text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
+            
+            # Normalize whitespace
+            text = re.sub(r'\s+', ' ', text).strip()
+            
+            # Return reasonable length content
+            return text[:600] if text else ""
+            
+        except Exception as e:
+            return raw_text[:500] if raw_text else ""
 
-        text = BeautifulSoup(raw_text, "html.parser").get_text()
-        text = re.sub(r'\{.*?\}', '', text)
-        text = re.sub(r'&[a-z]+;', ' ', text)
-
-        boilerplate_patterns = [
-            r'Read more', r'Click here', r'Subscribe',
-            r'Advertisement', r'Related:', r'Continue reading'
-        ]
-        for pattern in boilerplate_patterns:
-            text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
+    def _get_content_with_fallback(self, article_data: dict, url_key: str = 'url', content_key: str = 'content') -> str:
+        """Get content with multiple fallback strategies"""
+        # Try fetching full article first
+        url = article_data.get(url_key)
+        if url:
+            fetched_content = self._fetch_summary(url)
+            if fetched_content and len(fetched_content.strip()) > 100:
+                return fetched_content
+        
+        # Fallback to existing content fields
+        existing_content = article_data.get(content_key) or article_data.get('body') or article_data.get('description')
+        if existing_content:
+            return self._clean_fallback_content(existing_content)
+        
+        # Final fallback - use title and any available metadata
+        title = article_data.get('title', '')
+        return title[:200] if title else "Content unavailable"
 
     def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK, max_results: int = 1000) -> pd.DataFrame:
         """Collect financial news with proper pagination and fallback strategies"""
@@ -128,7 +223,7 @@ class NewsCollector:
                         break
                     
                     for article in articles:
-                        content = self._fetch_summary(article.get('url')) or self._clean_fallback_content(article.get('content'))
+                        content = self._get_content_with_fallback(article, 'url', 'content')
                         all_articles.append({
                             'title': article.get('title'),
                             'content': content,
@@ -187,7 +282,7 @@ class NewsCollector:
                         break
 
                     for article in articles:
-                        content = self._fetch_summary(article.get('url')) or self._clean_fallback_content(article.get('body'))
+                        content = self._get_content_with_fallback(article, 'url', 'body')
                         all_articles.append({
                             'title': article.get('title'),
                             'content': content,
@@ -274,7 +369,7 @@ class NewsCollector:
                             break
                         
                         for article in articles:
-                            content = self._fetch_summary(article.get('url')) or self._clean_fallback_content(article.get('content'))
+                            content = self._get_content_with_fallback(article, 'url', 'content')
                             all_news.append({
                                 'ticker': ticker,
                                 'title': article.get('title'),
@@ -319,7 +414,7 @@ class NewsCollector:
                             break
 
                         for article in articles:
-                            content = self._fetch_summary(article.get('url')) or self._clean_fallback_content(article.get('body'))
+                            content = self._get_content_with_fallback(article, 'url', 'body')
                             all_news.append({
                                 'ticker': ticker,
                                 'title': article.get('title'),
