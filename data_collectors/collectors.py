@@ -25,8 +25,8 @@ def collect_all_data():
 
     # Collect data
     logger.info("📊 Collecting stock data...")
-    stock_data = yf_collector.get_stock_data()
-    company_news = yf_collector.get_company_news()
+    # stock_data = yf_collector.get_stock_data()
+    # company_news = yf_collector.get_company_news()
 
     logger.info("📱 Collecting Reddit data...")
     reddit_posts = reddit_collector.collect_posts_last_month()

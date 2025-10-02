@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import logging
 from config.config import Config
 from newspaper import Article
-from bs4 import BeautifulSoup
+# from bs4 import BeautifulSoup
 import re
 import nltk
 import sys
