@@ -1,9 +1,9 @@
 import logging
 import pandas as pd
 from config.config import Config
-from data_collectors.yfinance_collector import YFinanceCollector
+# from data_collectors.yfinance_collector import YFinanceCollector
 from data_collectors.reddit_collector import RedditCollector
-from data_collectors.news_collector import NewsCollector
+# from data_collectors.news_collector import NewsCollector
 from utils.data_processor import DataProcessor
 
 logger = logging.getLogger(__name__)
@@ -16,12 +16,12 @@ def collect_all_data():
     processor = DataProcessor()
 
     # Initialize collectors
-    yf_collector = YFinanceCollector(tickers)
+    # yf_collector = YFinanceCollector(tickers)
     reddit_collector = RedditCollector()
     
     # Two separate NewsCollector instances
-    news_collector_newsapi = NewsCollector(source="newsapi")
-    news_collector_er = NewsCollector(source="eventregistry")
+    # news_collector_newsapi = NewsCollector(source="newsapi")
+    # news_collector_er = NewsCollector(source="eventregistry")
 
     # Collect data
     logger.info("📊 Collecting stock data...")
@@ -32,15 +32,15 @@ def collect_all_data():
     reddit_posts = reddit_collector.collect_posts_last_month()
     ticker_mentions = reddit_collector.search_tickers_last_month(tickers)
 
-    logger.info("📰 Collecting news data...")
-    financial_news_newsapi = news_collector_newsapi.collect_financial_news()
-    financial_news_er = news_collector_er.collect_financial_news(max_results=1000)
-    financial_news = pd.concat([financial_news_newsapi, financial_news_er], ignore_index=True)
+    # logger.info("📰 Collecting news data...")
+    # financial_news_newsapi = news_collector_newsapi.collect_financial_news()
+    # financial_news_er = news_collector_er.collect_financial_news(max_results=1000)
+    # financial_news = pd.concat([financial_news_newsapi, financial_news_er], ignore_index=True)
 
-    logger.info("📰 Collecting ticker news data...")
-    ticker_news_newsapi = news_collector_newsapi.collect_ticker_news(tickers)
-    ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=500)
-    ticker_news = pd.concat([ticker_news_newsapi, ticker_news_er], ignore_index=True)
+    # logger.info("📰 Collecting ticker news data...")
+    # ticker_news_newsapi = news_collector_newsapi.collect_ticker_news(tickers)
+    # ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=500)
+    # ticker_news = pd.concat([ticker_news_newsapi, ticker_news_er], ignore_index=True)
 
     # Save data
     logger.info("💾 Saving collected data...")
