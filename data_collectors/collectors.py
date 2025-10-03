@@ -49,36 +49,36 @@ def collect_all_data():
         reddit_file = processor.save_data(reddit_posts, "reddit_posts")
         logger.info(f"📁 Saved Reddit posts: {reddit_file}")
 
-    if not ticker_mentions.empty:
-        mentions_file = processor.save_data(ticker_mentions, "ticker_mentions")
-        logger.info(f"📁 Saved ticker mentions: {mentions_file}")
+    # if not ticker_mentions.empty:
+    #     mentions_file = processor.save_data(ticker_mentions, "ticker_mentions")
+    #     logger.info(f"📁 Saved ticker mentions: {mentions_file}")
 
-    if not financial_news.empty:
-        news_file = processor.save_data(financial_news, "financial_news")
-        logger.info(f"📁 Saved financial news (NewsAPI + Event Registry): {news_file}")
+    # if not financial_news.empty:
+    #     news_file = processor.save_data(financial_news, "financial_news")
+    #     logger.info(f"📁 Saved financial news (NewsAPI + Event Registry): {news_file}")
 
-    if not ticker_news.empty:
-        ticker_news_file = processor.save_data(ticker_news, "ticker_news")
-        logger.info(f"📁 Saved ticker news (NewsAPI + Event Registry): {ticker_news_file}")
+    # if not ticker_news.empty:
+    #     ticker_news_file = processor.save_data(ticker_news, "ticker_news")
+    #     logger.info(f"📁 Saved ticker news (NewsAPI + Event Registry): {ticker_news_file}")
 
-    # Combine for sentiment analysis
-    combined_reddit = (
-        pd.concat([reddit_posts, ticker_mentions], ignore_index=True)
-        if not reddit_posts.empty and not ticker_mentions.empty
-        else reddit_posts if not reddit_posts.empty else ticker_mentions
-    )
+    # # Combine for sentiment analysis
+    # combined_reddit = (
+    #     pd.concat([reddit_posts, ticker_mentions], ignore_index=True)
+    #     if not reddit_posts.empty and not ticker_mentions.empty
+    #     else reddit_posts if not reddit_posts.empty else ticker_mentions
+    # )
 
-    combined_news = (
-        pd.concat([financial_news, ticker_news], ignore_index=True)
-        if not financial_news.empty and not ticker_news.empty
-        else financial_news if not financial_news.empty else ticker_news
-    )
+    # combined_news = (
+    #     pd.concat([financial_news, ticker_news], ignore_index=True)
+    #     if not financial_news.empty and not ticker_news.empty
+    #     else financial_news if not financial_news.empty else ticker_news
+    # )
 
-    if not combined_reddit.empty or not combined_news.empty:
-        text_data = processor.combine_text_data(combined_reddit, combined_news)
-        if not text_data.empty:
-            text_file = processor.save_data(text_data, "combined_text_data")
-            logger.info(f"📁 Saved combined text data: {text_file}")
-            logger.info(f"📈 Total text samples for sentiment analysis: {len(text_data)}")
+    # if not combined_reddit.empty or not combined_news.empty:
+    #     text_data = processor.combine_text_data(combined_reddit, combined_news)
+    #     if not text_data.empty:
+    #         text_file = processor.save_data(text_data, "combined_text_data")
+    #         logger.info(f"📁 Saved combined text data: {text_file}")
+    #         logger.info(f"📈 Total text samples for sentiment analysis: {len(text_data)}")
 
     logger.info("✅ Data collection completed!")
