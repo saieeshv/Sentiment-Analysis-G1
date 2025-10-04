@@ -292,10 +292,6 @@ class HybridContentExtractor:
 
 class NewsCollector:
     def __init__(self, source: str = "newsapi"):
-        """
-        Initialize NewsCollector with enhanced capabilities.
-        source: "newsapi" or "eventregistry"
-        """
         self.source = source.lower()
         if self.source == "newsapi":
             self.api_key = Config.NEWSAPI_KEY
@@ -307,6 +303,15 @@ class NewsCollector:
             raise ValueError("Unsupported source. Choose 'newsapi' or 'eventregistry'.")
 
         self.logger = logging.getLogger(__name__)
+
+        # Broad market ETFs
+        self.broad_market_tickers = ["VTI", "SCHB", "IWV"]
+        self.broad_market_keywords = [
+            "VTI", "SCHB", "IWV",
+            "Vanguard Total Stock Market",
+            "Schwab U.S. Broad Market",
+            "iShares Russell 3000"
+        ]
         
         # Enhanced components
         self.content_extractor = HybridContentExtractor()
@@ -429,6 +434,123 @@ class NewsCollector:
         return None
 
     def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK, max_results: int = 1000) -> pd.DataFrame:
+        """Collect news related to broad US equity market ETFs such as VTI, SCHB, IWV."""
+        if self.source == "newsapi":
+            url = f"{self.base_url}/everything"
+            page = 1
+            collected = 0
+            
+            # Keywords to capture news related to broad market ETFs
+            query = " OR ".join([
+                "VTI", "SCHB", "IWV",
+                "Vanguard Total Stock Market",
+                "Schwab U.S. Broad Market",
+                "iShares Russell 3000"
+            ])
+            from_date = datetime.now() - timedelta(days=days_back)
+            
+            all_articles = []
+            while collected < max_results:
+                params = {
+                    'apiKey': self.api_key,
+                    'q': query,
+                    'from': from_date.strftime('%Y-%m-%d'),
+                    'language': 'en',
+                    'sortBy': 'publishedAt',
+                    'pageSize': min(100, max_results - collected),
+                    'page': page
+                }
+                
+                data = self._make_api_request(url, params)
+                if not data or data.get("status") == "error":
+                    self.logger.warning(f"NewsAPI error or no data on page {page}")
+                    break
+                
+                articles = data.get('articles', [])
+                if not articles:
+                    self.logger.info(f"NewsAPI no more articles available at page {page}")
+                    break
+                
+                for article in articles:
+                    content = self._get_content_with_fallback(article, 'url', 'content')
+                    if len(content.strip()) < 50:
+                        continue
+                    
+                    article_data = {
+                        'title': article.get('title'),
+                        'content': content,
+                        'source': article.get('source', {}).get('name'),
+                        'published_at': article.get('publishedAt'),
+                        'url': article.get('url'),
+                        'collected_at': datetime.now()
+                    }
+                    all_articles.append(article_data)
+                
+                collected += len(articles)
+                page += 1
+                
+            df = pd.DataFrame(all_articles)
+            return df
+
+        elif self.source == "eventregistry":
+            page = 1
+            collected = 0
+            all_articles = []
+            
+            # Event Registry API uses a keyword parameter similarly
+            query = " OR ".join([
+                "VTI", "SCHB", "IWV",
+                "Vanguard Total Stock Market",
+                "Schwab U.S. Broad Market",
+                "iShares Russell 3000"
+            ])
+            
+            while collected < max_results:
+                params = {
+                    "apiKey": self.api_key,
+                    "action": "getArticles",
+                    "keyword": query,
+                    "lang": "eng",
+                    "articlesPage": page,
+                    "articlesCount": min(100, max_results - collected),
+                    "articlesSortBy": "date",
+                    "includeArticleSentiment": True,
+                    "dateStart": (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d'),
+                    "dateEnd": datetime.now().strftime('%Y-%m-%d')
+                }
+                
+                data = self._make_api_request(self.base_url, params)
+                if not data:
+                    self.logger.warning(f"Event Registry API returned no data at page {page}")
+                    break
+                
+                articles = data.get("articles", {}).get("results", [])
+                if not articles:
+                    self.logger.info(f"Event Registry no more articles available at page {page}")
+                    break
+                
+                for article in articles:
+                    content = self._get_content_with_fallback(article, 'url', 'body')
+                    if len(content.strip()) < 50:
+                        continue
+                    
+                    article_data = {
+                        'title': article.get('title'),
+                        'content': content,
+                        'source': article.get('source', {}).get('title'),
+                        'published_at': article.get('dateTimePub'),
+                        'url': article.get('url'),
+                        'sentiment': article.get('sentiment'),
+                        'collected_at': datetime.now()
+                    }
+                    all_articles.append(article_data)
+                
+                collected += len(articles)
+                page += 1
+            
+            df = pd.DataFrame(all_articles)
+            return df
+
         """Enhanced financial news collection with batching and quality filtering"""
         days_back = min(days_back, Config.MAX_DAYS_BACK)
         from_date = datetime.now() - timedelta(days=days_back)

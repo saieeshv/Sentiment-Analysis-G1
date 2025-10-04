@@ -42,15 +42,6 @@ class YFinanceCollector:
         return stock_data
     
     def get_company_news(self, days_back: int = 30) -> List[Dict]:
-        """
-        Get company news articles associated with the tickers, limited by days_back.
-        
-        Args:
-            days_back (int): Number of days back from today to fetch news. Default 30.
-            
-        Returns:
-            List[Dict]: List of news articles, each with ticker and collected_at fields.
-        """
         all_news = []
         cutoff_date = datetime.now() - timedelta(days=days_back)
         

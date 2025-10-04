@@ -13,10 +13,11 @@ def collect_all_data():
     logger.info("🚀 Starting data collection...")
 
     tickers = Config.DEFAULT_TICKERS
+    broad_market_tickers = ["VTI", "SCHB", "IWV"]
     processor = DataProcessor()
 
     # Initialize collectors
-    yf_collector = YFinanceCollector(tickers)
+    yf_collector = YFinanceCollector(tickers + broad_market_tickers)
     reddit_collector = RedditCollector()
     
     # Two separate NewsCollector instances
@@ -31,6 +32,7 @@ def collect_all_data():
     logger.info("📱 Collecting Reddit data...")
     reddit_posts = reddit_collector.collect_posts_last_month()
     ticker_mentions = reddit_collector.search_tickers_last_month(tickers)
+    broad_market_reddit_posts = reddit_collector.collect_broad_market_posts_last_month()
 
     logger.info("📰 Collecting news data...")
     financial_news_newsapi = news_collector_newsapi.collect_financial_news()
@@ -42,6 +44,7 @@ def collect_all_data():
     ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=10)
     ticker_news = pd.concat([ticker_news_newsapi, ticker_news_er], ignore_index=True)
 
+
     # Save data
     logger.info("💾 Saving collected data...")
 
@@ -52,6 +55,10 @@ def collect_all_data():
     if not ticker_mentions.empty:
         mentions_file = processor.save_data(ticker_mentions, "ticker_mentions")
         logger.info(f"📁 Saved ticker mentions: {mentions_file}")
+    
+    if not broad_market_reddit_posts.empty:
+        broad_reddit_file = processor.save_data(broad_market_reddit_posts, "broad_market_reddit_posts")
+        logger.info(f"📁 Saved broad market Reddit posts: {broad_reddit_file}")
 
     if not financial_news.empty:
         news_file = processor.save_data(financial_news, "financial_news")
@@ -60,25 +67,30 @@ def collect_all_data():
     if not ticker_news.empty:
         ticker_news_file = processor.save_data(ticker_news, "ticker_news")
         logger.info(f"📁 Saved ticker news (NewsAPI + Event Registry): {ticker_news_file}")
+    
+
 
     # Combine for sentiment analysis
     combined_reddit = (
-        pd.concat([reddit_posts, ticker_mentions], ignore_index=True)
-        if not reddit_posts.empty and not ticker_mentions.empty
-        else reddit_posts if not reddit_posts.empty else ticker_mentions
+        pd.concat([reddit_posts, ticker_mentions, broad_market_reddit_posts], ignore_index=True)
+        if not reddit_posts.empty and not ticker_mentions.empty and not broad_market_reddit_posts.empty
+        else reddit_posts if not reddit_posts.empty else (ticker_mentions if not ticker_mentions.empty else broad_market_reddit_posts)
     )
 
     combined_news = (
         pd.concat([financial_news, ticker_news], ignore_index=True)
-        if not financial_news.empty and not ticker_news.empty
-        else financial_news if not financial_news.empty else ticker_news
+        if not financial_news.empty and not ticker_news.empty 
+        else financial_news if not financial_news.empty 
+        else ticker_news if not ticker_news.empty 
+        else pd.DataFrame()
     )
+
 
     if not combined_reddit.empty or not combined_news.empty:
         text_data = processor.combine_text_data(combined_reddit, combined_news)
         if not text_data.empty:
             text_file = processor.save_data(text_data, "combined_text_data")
-            logger.info(f"📁 Saved combined text data: {text_file}")
+            logger.info(f"📁 Saved combined text  {text_file}")
             logger.info(f"📈 Total text samples for sentiment analysis: {len(text_data)}")
 
     NewsCollector.clear_cache_dir("cache")  

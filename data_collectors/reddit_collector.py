@@ -331,6 +331,11 @@ class RedditCollector:
         
         return df
     
+    def collect_broad_market_posts_last_month(self, limit: int = 1000) -> pd.DataFrame:
+        """Collect posts mentioning broad market ETFs like VTI, SCHB, IWV"""
+        broad_tickers = ["VTI", "SCHB", "IWV"]
+        return self.search_tickers_last_month(broad_tickers, limit)
+    
     def search_tickers_last_month(self, tickers: List[str], limit: int = 1000) -> pd.DataFrame:
         """Enhanced ticker search with relevance scoring and prioritized subreddits"""
         cache_key = self._get_cache_key("tickers", {"tickers": tickers, "limit": limit})
