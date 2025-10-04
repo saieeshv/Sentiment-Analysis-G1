@@ -34,12 +34,12 @@ def collect_all_data():
 
     logger.info("📰 Collecting news data...")
     financial_news_newsapi = news_collector_newsapi.collect_financial_news()
-    financial_news_er = news_collector_er.collect_financial_news(max_results=1000)
+    financial_news_er = news_collector_er.collect_financial_news(max_results=100)
     financial_news = pd.concat([financial_news_newsapi, financial_news_er], ignore_index=True)
 
     logger.info("📰 Collecting ticker news data...")
     ticker_news_newsapi = news_collector_newsapi.collect_ticker_news(tickers)
-    ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=500)
+    ticker_news_er = news_collector_er.collect_ticker_news(tickers, max_results=10)
     ticker_news = pd.concat([ticker_news_newsapi, ticker_news_er], ignore_index=True)
 
     # Save data
@@ -81,4 +81,7 @@ def collect_all_data():
             logger.info(f"📁 Saved combined text data: {text_file}")
             logger.info(f"📈 Total text samples for sentiment analysis: {len(text_data)}")
 
+    NewsCollector.clear_cache_dir("cache")  
     logger.info("✅ Data collection completed!")
+
+    
