@@ -13,8 +13,82 @@ class Config:
     REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'FinancialSentimentBot/1.0')
     EVENTREGISTRY_KEY = os.getenv('EVENT_REGISTRY_API_KEY')
     
-    # Stock tickers to analyze
-    DEFAULT_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'NVDA', 'META', 'NFLX']
+    DEFAULT_TICKERS = [
+        'AAPL',  
+        'JPM',   
+        'UNH',   
+        'AMZN',  
+        'WMT',   
+        'T',     
+        'BA',    
+        'XOM',   
+        'LIN',   
+        'NEE',  
+        'PLD'   
+    ]
+
+    BROAD_MARKET_ETFS = [
+        "VTI", "SCHB", "IWV", "SPY", "VOO", "IVV",  # Broad market
+        "QQQ",                                        # Tech-heavy
+        "IWM", "IJH"                                 # Small/mid cap
+    ]
+    BROAD_MARKET_KEYWORDS = [
+        "VTI", "SCHB", "IWV", "SPY", "QQQ", "VOO",
+        "NASDAQ Composite", "S&P 500", "Dow Jones",
+        "Vanguard Total Stock Market",
+        "Schwab U.S. Broad Market",
+        "iShares Russell 3000",
+        "market sentiment", "market outlook",
+        "bull market", "bear market", "economic indicators"
+    ]
+
+    TICKER_SECTORS = {
+    # Individual Stocks (11 GICS Sectors)
+    'AAPL': 'Information Technology',
+    'MSFT': 'Information Technology',
+    'GOOGL': 'Information Technology',
+    'JPM': 'Financials',
+    'UNH': 'Healthcare',
+    'AMZN': 'Consumer Discretionary',
+    'WMT': 'Consumer Staples',
+    'T': 'Communication Services',
+    'BA': 'Industrials',
+    'XOM': 'Energy',
+    'LIN': 'Materials',
+    'NEE': 'Utilities',
+    'PLD': 'Real Estate',
+    
+    # Broad Market ETFs
+    'VTI': 'Broad Market ETF',
+    'SCHB': 'Broad Market ETF',
+    'IWV': 'Broad Market ETF',
+    'SPY': 'Broad Market ETF',
+    'VOO': 'Broad Market ETF',
+    'IVV': 'Broad Market ETF',
+    'QQQ': 'Technology ETF',
+    'IWM': 'Small Cap ETF',
+    'IJH': 'Mid Cap ETF',
+     
+    # Sector ETFs (SPDR Sector Select)
+    'XLF': 'Financial Sector ETF',
+    'XLK': 'Technology Sector ETF',
+    'XLE': 'Energy Sector ETF',
+    'XLV': 'Healthcare Sector ETF',
+    'XLY': 'Consumer Discretionary Sector ETF',
+    'XLP': 'Consumer Staples Sector ETF',
+    'XLI': 'Industrial Sector ETF',
+    'XLU': 'Utilities Sector ETF',
+    'XLRE': 'Real Estate Sector ETF',
+    
+    # Special
+    'MACRO': 'Market-Wide'
+    }
+
+    
+    @staticmethod
+    def get_sector(ticker: str) -> str:
+        """Get sector for a ticker, default to 'Other' if not found"""
+        return Config.TICKER_SECTORS.get(ticker, 'Other')
     
     # Reddit settings
     REDDIT_SUBREDDITS = ['GrowthStocks', 'investing', 'stocks', 'SecurityAnalysis', 'wallstreetbets']

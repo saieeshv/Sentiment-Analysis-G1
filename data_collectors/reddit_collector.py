@@ -249,13 +249,14 @@ class RedditCollector:
     
     def _prioritize_subreddits_by_ticker(self, ticker: str) -> List[str]:
         """Dynamically prioritize subreddits based on ticker type and historical popularity"""
-        # Default prioritization based on ticker characteristics
-        if ticker in ['SPY', 'QQQ', 'VTI', 'VOO']:  # ETFs
+        # Check if it's a broad market ETF
+        if ticker in Config.BROAD_MARKET_ETFS:  # ← Changed from hardcoded
             return ['investing', 'Bogleheads', 'financialindependence', 'stocks']
         elif len(ticker) <= 3:  # Major stocks
             return ['wallstreetbets', 'stocks', 'investing', 'SecurityAnalysis']
         else:  # Potentially penny stocks
             return ['pennystocks', 'wallstreetbets', 'stocks']
+
     
     def collect_posts_last_month(self, subreddits: List[str] = None, limit: int = 1000) -> pd.DataFrame:
         """Enhanced collection with caching and quality scoring"""
@@ -333,8 +334,9 @@ class RedditCollector:
     
     def collect_broad_market_posts_last_month(self, limit: int = 1000) -> pd.DataFrame:
         """Collect posts mentioning broad market ETFs like VTI, SCHB, IWV"""
-        broad_tickers = ["VTI", "SCHB", "IWV"]
+        broad_tickers = Config.BROAD_MARKET_ETFS  # ← Changed from hardcoded
         return self.search_tickers_last_month(broad_tickers, limit)
+
     
     def search_tickers_last_month(self, tickers: List[str], limit: int = 1000) -> pd.DataFrame:
         """Enhanced ticker search with relevance scoring and prioritized subreddits"""
@@ -422,8 +424,18 @@ class RedditCollector:
                 except Exception as e:
                     self.logger.error(f"❌ Error searching {ticker} in r/{sub_name}: {str(e)}")
         
-        df = pd.DataFrame(ticker_posts)
+            df = pd.DataFrame(ticker_posts)
+            if not df.empty:
+                df = df.drop_duplicates(subset=['id'], keep='first')
+                df = df.sort_values(['relevance_score', 'quality_score'], ascending=[False, False])
+                
+                # ADD CATEGORY HERE ⬇️
+                from config.config import Config
+                df['category'] = df['ticker'].apply(lambda x: Config.get_sector(x))
         
+            self._cache_data(cache_key, df)
+            return df
+            
         # Remove duplicates and sort by relevance
         if not df.empty:
             df = df.drop_duplicates(subset=['id'], keep='first')

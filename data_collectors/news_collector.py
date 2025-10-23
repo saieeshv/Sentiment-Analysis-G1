@@ -304,14 +304,9 @@ class NewsCollector:
 
         self.logger = logging.getLogger(__name__)
 
-        # Broad market ETFs
-        self.broad_market_tickers = ["VTI", "SCHB", "IWV"]
-        self.broad_market_keywords = [
-            "VTI", "SCHB", "IWV",
-            "Vanguard Total Stock Market",
-            "Schwab U.S. Broad Market",
-            "iShares Russell 3000"
-        ]
+        # Broad market 
+        self.broad_market_tickers = Config.BROAD_MARKET_ETFS
+        self.broad_market_keywords = Config.BROAD_MARKET_KEYWORDS
         
         # Enhanced components
         self.content_extractor = HybridContentExtractor()

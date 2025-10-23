@@ -13,7 +13,7 @@ def collect_all_data():
     logger.info("🚀 Starting data collection...")
 
     tickers = Config.DEFAULT_TICKERS
-    broad_market_tickers = ["VTI", "SCHB", "IWV"]
+    broad_market_tickers = Config.BROAD_MARKET_ETFS 
     processor = DataProcessor()
 
     # Initialize collectors
@@ -26,8 +26,8 @@ def collect_all_data():
 
     # Collect data
     logger.info("📊 Collecting stock data...")
-    # stock_data = yf_collector.get_stock_data()
-    # company_news = yf_collector.get_company_news()
+    stock_data = yf_collector.get_stock_data()
+    company_news = yf_collector.get_company_news()
 
     logger.info("📱 Collecting Reddit data...")
     reddit_posts = reddit_collector.collect_posts_last_month()
@@ -47,6 +47,14 @@ def collect_all_data():
 
     # Save data
     logger.info("💾 Saving collected data...")
+
+    if not stock_data.empty:
+        stock_file = processor.save_data(stock_data, "stock_data")
+        logger.info(f"📁 Saved stock data: {stock_file}")
+
+    if not company_news.empty:
+        company_news_file = processor.save_data(company_news, "company_news")
+        logger.info(f"📁 Saved company news: {company_news_file}")
 
     if not reddit_posts.empty:
         reddit_file = processor.save_data(reddit_posts, "reddit_posts")
@@ -88,12 +96,15 @@ def collect_all_data():
 
     if not combined_reddit.empty or not combined_news.empty:
         text_data = processor.combine_text_data(combined_reddit, combined_news)
+        
         if not text_data.empty:
+            # ADD CATEGORY HERE ⬇️
+            if 'ticker' in text_data.columns:
+                text_data['category'] = text_data['ticker'].apply(lambda x: Config.get_sector(x) if pd.notna(x) else 'General')
+            
             text_file = processor.save_data(text_data, "combined_text_data")
-            logger.info(f"📁 Saved combined text  {text_file}")
-            logger.info(f"📈 Total text samples for sentiment analysis: {len(text_data)}")
+            logger.info(f"📁 Saved combined text: {text_file}")
+
 
     NewsCollector.clear_cache_dir("cache")  
     logger.info("✅ Data collection completed!")
-
-    
