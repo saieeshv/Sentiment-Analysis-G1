@@ -327,8 +327,16 @@ class RedditCollector:
         
         df = pd.DataFrame(all_posts)
         
-        # Cache the results
-        self._cache_data(cache_key, df)
+        if not df.empty:
+            # ADD THIS: Handle posts with multiple tickers
+            from config.config import Config
+            
+            def get_category(ticker_list):
+                if isinstance(ticker_list, list) and len(ticker_list) > 0:
+                    return Config.get_sector(ticker_list[0])  # Use first ticker
+                return 'General'
+            
+            df['category'] = df['tickers'].apply(get_category)
         
         return df
     
@@ -425,14 +433,15 @@ class RedditCollector:
                     self.logger.error(f"❌ Error searching {ticker} in r/{sub_name}: {str(e)}")
         
             df = pd.DataFrame(ticker_posts)
+    
             if not df.empty:
                 df = df.drop_duplicates(subset=['id'], keep='first')
                 df = df.sort_values(['relevance_score', 'quality_score'], ascending=[False, False])
                 
-                # ADD CATEGORY HERE ⬇️
+                # ADD THIS: Automatically add category
                 from config.config import Config
                 df['category'] = df['ticker'].apply(lambda x: Config.get_sector(x))
-        
+            
             self._cache_data(cache_key, df)
             return df
             

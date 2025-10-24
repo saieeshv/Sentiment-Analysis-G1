@@ -1,6 +1,8 @@
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import yfinance as yf
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -13,114 +15,104 @@ class Config:
     REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'FinancialSentimentBot/1.0')
     EVENTREGISTRY_KEY = os.getenv('EVENT_REGISTRY_API_KEY')
     
-    DEFAULT_TICKERS = [
-        'AAPL',  
-        'JPM',   
-        'UNH',   
-        'AMZN',  
-        'WMT',   
-        'T',     
-        'BA',    
-        'XOM',   
-        'LIN',   
-        'NEE',  
-        'PLD'   
-    ]
-
-    BROAD_MARKET_ETFS = [
-        "VTI", "SCHB", "IWV", "SPY", "VOO", "IVV",  # Broad market
-        "QQQ",                                        # Tech-heavy
-        "IWM", "IJH"                                 # Small/mid cap
-    ]
-    BROAD_MARKET_KEYWORDS = [
-        "VTI", "SCHB", "IWV", "SPY", "QQQ", "VOO",
-        "NASDAQ Composite", "S&P 500", "Dow Jones",
-        "Vanguard Total Stock Market",
-        "Schwab U.S. Broad Market",
-        "iShares Russell 3000",
-        "market sentiment", "market outlook",
-        "bull market", "bear market", "economic indicators"
-    ]
-
-    TICKER_SECTORS = {
-    # Individual Stocks (11 GICS Sectors)
-    'AAPL': 'Information Technology',
-    'MSFT': 'Information Technology',
-    'GOOGL': 'Information Technology',
-    'JPM': 'Financials',
-    'UNH': 'Healthcare',
-    'AMZN': 'Consumer Discretionary',
-    'WMT': 'Consumer Staples',
-    'T': 'Communication Services',
-    'BA': 'Industrials',
-    'XOM': 'Energy',
-    'LIN': 'Materials',
-    'NEE': 'Utilities',
-    'PLD': 'Real Estate',
+    # Data Collection Settings
+    DEFAULT_NEWS_DAYS_BACK = 30
+    DEFAULT_REDDIT_DAYS_BACK = 30
+    MAX_DAYS_BACK = 365  # Maximum lookback period for news
+    MAX_NEWS_RESULTS = 1000
+    MAX_REDDIT_POSTS = 1000
     
+    # Stock tickers to analyze
+    DEFAULT_TICKERS = [
+        'AAPL',  # Information Technology
+        'JPM',
+        'XOM',  # Energy
+        'JNJ',  # Healthcare   
+
+
+    ]
+
     # Broad Market ETFs
-    'VTI': 'Broad Market ETF',
-    'SCHB': 'Broad Market ETF',
-    'IWV': 'Broad Market ETF',
-    'SPY': 'Broad Market ETF',
+    BROAD_MARKET_ETFS = [
+        "VOO", "SOXX", "IWM", "SPY", "QQQ", "VOO", "ARKX"                                
+    ]
+    
+    BROAD_MARKET_KEYWORDS = [
+    "market", "stocks", "economy", "inflation", "interest rates",
+    "NASDAQ", "S&P 500", "Dow Jones", "ETF", "bull market", "bear market"
+    ]
+
+    # Sector mapping (manual for ETFs and special cases)
+    TICKER_SECTORS = {
+    # Broad Market ETFs
     'VOO': 'Broad Market ETF',
-    'IVV': 'Broad Market ETF',
-    'QQQ': 'Technology ETF',
+    'SOXX': 'Semiconductors ETF',
     'IWM': 'Small Cap ETF',
+    'SPY': 'Broad Market ETF',
+    'QQQ': 'Technology ETF',
+    'ARKX': 'Innovation ETF',  # ARKX focuses on space innovation
+    
+    'VTI': 'Broad Market ETF',
+    'IWV': 'Broad Market ETF',
+    
+    # Specialized ETFs
     'IJH': 'Mid Cap ETF',
-     
-    # Sector ETFs (SPDR Sector Select)
-    'XLF': 'Financial Sector ETF',
-    'XLK': 'Technology Sector ETF',
-    'XLE': 'Energy Sector ETF',
-    'XLV': 'Healthcare Sector ETF',
-    'XLY': 'Consumer Discretionary Sector ETF',
-    'XLP': 'Consumer Staples Sector ETF',
-    'XLI': 'Industrial Sector ETF',
-    'XLU': 'Utilities Sector ETF',
-    'XLRE': 'Real Estate Sector ETF',
     
     # Special
     'MACRO': 'Market-Wide'
     }
 
+    # Date range settings
+    START_DATE = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    END_DATE = datetime.now().strftime('%Y-%m-%d')
+    
+    # Data directories
+    DATA_DIR = 'data'
+    CACHE_DIR = 'cache'
     
     @staticmethod
     def get_sector(ticker: str) -> str:
-        """Get sector for a ticker, default to 'Other' if not found"""
-        return Config.TICKER_SECTORS.get(ticker, 'Other')
-    
-    # Reddit settings
-    REDDIT_SUBREDDITS = ['GrowthStocks', 'investing', 'stocks', 'SecurityAnalysis', 'wallstreetbets']
-    REDDIT_POST_LIMIT = 50
-    
-    # News settings
-    NEWS_SOURCES = ['reuters', 'bloomberg', 'cnbc', 'marketwatch']
-    NEWS_KEYWORDS = ['stock market', 'earnings', 'financial news']
-    
-    # Timeline settings
-    DEFAULT_NEWS_DAYS_BACK = 1
-    DEFAULT_REDDIT_TIME_FILTER = 'day'  # 'hour', 'day', 'week', 'month', 'year', 'all'
-    
-    # Breaking news settings (very recent)
-    BREAKING_NEWS_HOURS = 6
-    RECENT_REDDIT_HOURS = 12
-    
-    # Historical analysis
-    MAX_DAYS_BACK = 30  # NewsAPI free plan limit
+        """
+        Automatically get sector for any ticker using yfinance.
+        Falls back to manual mapping for ETFs.
+        """
+        # Check manual mapping first (for ETFs and special cases)
+        if ticker in Config.TICKER_SECTORS:
+            return Config.TICKER_SECTORS[ticker]
+        
+        # Fetch sector from yfinance for regular stocks
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+            
+            # Try to get sector
+            sector = info.get('sector', None)
+            if sector:
+                return sector
+            
+            # Fallback to industry if sector not available
+            industry = info.get('industry', None)
+            if industry:
+                return industry
+                
+        except Exception as e:
+            logging.warning(f"Could not fetch sector for {ticker}: {e}")
+        
+        return 'Other'
     
     @staticmethod
     def validate_config():
-        """Check if all required API keys are set"""
-        missing = []
-        if not Config.NEWSAPI_KEY:
-            missing.append('NEWSAPI_KEY')
-        if not Config.REDDIT_CLIENT_ID:
-            missing.append('REDDIT_CLIENT_ID')
-        if not Config.REDDIT_CLIENT_SECRET:
-            missing.append('REDDIT_CLIENT_SECRET')
+        """Validate that all required API keys are present"""
+        required_keys = {
+            'NEWSAPI_KEY': Config.NEWSAPI_KEY,
+            'REDDIT_CLIENT_ID': Config.REDDIT_CLIENT_ID,
+            'REDDIT_CLIENT_SECRET': Config.REDDIT_CLIENT_SECRET,
+            'EVENTREGISTRY_KEY': Config.EVENTREGISTRY_KEY
+        }
         
-        if missing:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+        missing_keys = [key for key, value in required_keys.items() if not value]
+        
+        if missing_keys:
+            raise ValueError(f"Missing required API keys: {', '.join(missing_keys)}")
         
         return True

@@ -123,6 +123,7 @@ class HybridContentExtractor:
             'webhostingtalk.com', 'morningstar.com', 'citizen.co.za',
             'globenewswire.com', 'biztoc.com', 'slickdeals.net', 'reddit.com'
         ]
+
     
     def extract_content(self, url: str, html: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -305,8 +306,8 @@ class NewsCollector:
         self.logger = logging.getLogger(__name__)
 
         # Broad market 
-        self.broad_market_tickers = Config.BROAD_MARKET_ETFS
-        self.broad_market_keywords = Config.BROAD_MARKET_KEYWORDS
+        self.broadmarkettickers = Config.BROAD_MARKET_ETFS
+        self.broadmarketkeywords = Config.BROAD_MARKET_KEYWORDS
         
         # Enhanced components
         self.content_extractor = HybridContentExtractor()
@@ -324,6 +325,20 @@ class NewsCollector:
         # Exponential backoff settings
         self.max_retries = 3
         self.base_delay = 1.0
+        
+    def _detect_etf_category(self, title: str, content: str) -> str:
+
+        text = f"{title} {content}".upper()
+        
+        # Check each ETF ticker in the text
+        for ticker, sector in Config.TICKER_SECTORS.items():
+            if ticker == 'MACRO':  # Skip the MACRO entry
+                continue
+            if ticker in text:
+                return sector
+        
+        # Default to Market-Wide for general financial news
+        return 'Market-Wide'
 
     def test_connection(self):
         """Test API connection with enhanced error handling"""
@@ -429,19 +444,15 @@ class NewsCollector:
         return None
 
     def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK, max_results: int = 1000) -> pd.DataFrame:
-        """Collect news related to broad US equity market ETFs such as VTI, SCHB, IWV."""
+        """Collect news related to broad US equity market ETFs using configured keywords."""
         if self.source == "newsapi":
             url = f"{self.base_url}/everything"
             page = 1
             collected = 0
             
-            # Keywords to capture news related to broad market ETFs
-            query = " OR ".join([
-                "VTI", "SCHB", "IWV",
-                "Vanguard Total Stock Market",
-                "Schwab U.S. Broad Market",
-                "iShares Russell 3000"
-            ])
+            # Use keywords from config
+            query = " OR ".join(self.broadmarketkeywords)
+            
             from_date = datetime.now() - timedelta(days=days_back)
             
             all_articles = []
@@ -477,6 +488,7 @@ class NewsCollector:
                         'source': article.get('source', {}).get('name'),
                         'published_at': article.get('publishedAt'),
                         'url': article.get('url'),
+                        'category': self._detect_etf_category(article.get('title', ''), content),
                         'collected_at': datetime.now()
                     }
                     all_articles.append(article_data)
@@ -492,13 +504,8 @@ class NewsCollector:
             collected = 0
             all_articles = []
             
-            # Event Registry API uses a keyword parameter similarly
-            query = " OR ".join([
-                "VTI", "SCHB", "IWV",
-                "Vanguard Total Stock Market",
-                "Schwab U.S. Broad Market",
-                "iShares Russell 3000"
-            ])
+            # Use keywords from config
+            query = " OR ".join(self.broadmarketkeywords)
             
             while collected < max_results:
                 params = {
@@ -536,6 +543,7 @@ class NewsCollector:
                         'published_at': article.get('dateTimePub'),
                         'url': article.get('url'),
                         'sentiment': article.get('sentiment'),
+                        'category': self._detect_etf_category(article.get('title', ''), content),  # ✅ Add this
                         'collected_at': datetime.now()
                     }
                     all_articles.append(article_data)
@@ -545,168 +553,11 @@ class NewsCollector:
             
             df = pd.DataFrame(all_articles)
             return df
+        
+        else:
+            self.logger.error(f"Unsupported source: {self.source}")
+            return pd.DataFrame()
 
-        """Enhanced financial news collection with batching and quality filtering"""
-        days_back = min(days_back, Config.MAX_DAYS_BACK)
-        from_date = datetime.now() - timedelta(days=days_back)
-        all_articles = []
-        
-        if self.source == "newsapi":
-            url = f"{self.base_url}/everything"
-            page = 1
-            collected = 0
-            consecutive_failures = 0
-            
-            while collected < min(max_results, 100) and consecutive_failures < 3:  # Free tier limit with failure protection
-                params = {
-                    'apiKey': self.api_key,
-                    'q': 'stock market OR financial news OR earnings OR "financial markets"',
-                    'from': from_date.strftime('%Y-%m-%d'),
-                    'language': 'en',
-                    'sortBy': 'publishedAt',
-                    'pageSize': min(100, max_results - collected),
-                    'page': page
-                }
-                
-                data = self._make_api_request(url, params)
-                if not data:
-                    consecutive_failures += 1
-                    self.logger.warning(f"API request failed for page {page}")
-                    break
-                
-                if data.get('status') == 'error':
-                    self.logger.error(f"NewsAPI error: {data.get('message', 'Unknown error')}")
-                    break
-                
-                articles = data.get('articles', [])
-                total_results = data.get('totalResults', 0)
-                
-                self.logger.info(f"📊 NewsAPI Page {page}: {len(articles)} articles, Total available: {total_results}")
-                
-                if not articles:
-                    self.logger.info("📄 No more articles available")
-                    break
-                
-                # Process articles in batches for better memory management
-                batch_articles = []
-                for article in articles:
-                    content = self._get_content_with_fallback(article, 'url', 'content')
-                    
-                    # Skip articles with very poor content quality
-                    if len(content.strip()) < 50:
-                        continue
-                    
-                    article_data = {
-                        'title': article.get('title'),
-                        'content': content,
-                        'source': article.get('source', {}).get('name'),
-                        'published_at': article.get('publishedAt'),
-                        'url': article.get('url'),
-                        'collected_at': datetime.now()
-                    }
-                    
-                    # Add enhanced metadata if available
-                    if article.get('_quality_score'):
-                        article_data['quality_score'] = article.get('_quality_score')
-                    if article.get('_extracted_keywords'):
-                        article_data['keywords'] = article.get('_extracted_keywords')
-                    
-                    batch_articles.append(article_data)
-                
-                all_articles.extend(batch_articles)
-                collected += len(batch_articles)
-                page += 1
-                consecutive_failures = 0  # Reset on success
-                
-                # Break if we've reached all available results
-                if collected >= total_results:
-                    break
-                    
-        elif self.source == "eventregistry":
-            page = 1
-            collected = 0
-            consecutive_failures = 0
-            
-            while collected < max_results and consecutive_failures < 3:
-                params = {
-                    "apiKey": self.api_key,
-                    "action": "getArticles",
-                    "categoryUri": "news/Business",
-                    "lang": "eng",
-                    "articlesPage": page,
-                    "articlesCount": min(100, max_results - collected),
-                    "articlesSortBy": "date",
-                    "includeArticleSentiment": True,
-                    "dateStart": (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d'),
-                    "dateEnd": datetime.now().strftime('%Y-%m-%d')
-                }
-                
-                data = self._make_api_request(self.base_url, params)
-                if not data:
-                    consecutive_failures += 1
-                    self.logger.warning(f"API request failed for page {page}")
-                    continue
-                
-                self.logger.info(f"🔍 Event Registry response info: {data.get('info', 'No info')}")
-                
-                articles = data.get("articles", {}).get("results", [])
-                total_results = data.get("articles", {}).get("totalResults", 0)
-                
-                self.logger.info(f"📊 Event Registry Page {page}: {len(articles)} articles, Total available: {total_results}")
-                
-                if not articles:
-                    self.logger.info("📄 No more Event Registry articles available")
-                    break
-                
-                # Process articles with enhanced content extraction
-                batch_articles = []
-                for article in articles:
-                    content = self._get_content_with_fallback(article, 'url', 'body')
-                    
-                    # Skip low-quality content
-                    if len(content.strip()) < 50:
-                        continue
-                    
-                    article_data = {
-                        'title': article.get('title'),
-                        'content': content,
-                        'source': article.get('source', {}).get('title'),
-                        'published_at': article.get('dateTimePub'),
-                        'url': article.get('url'),
-                        'sentiment': article.get('sentiment'),
-                        'collected_at': datetime.now()
-                    }
-                    
-                    # Add enhanced metadata
-                    if article.get('_quality_score'):
-                        article_data['quality_score'] = article.get('_quality_score')
-                    if article.get('_extracted_keywords'):
-                        article_data['keywords'] = article.get('_extracted_keywords')
-                    
-                    batch_articles.append(article_data)
-                
-                all_articles.extend(batch_articles)
-                collected += len(batch_articles)
-                page += 1
-                consecutive_failures = 0
-                
-                # Break if we've reached all available results
-                if collected >= total_results:
-                    break
-        
-        # Filter out duplicates based on URL and title similarity
-        df = pd.DataFrame(all_articles)
-        if not df.empty:
-            # Remove exact URL duplicates
-            df = df.drop_duplicates(subset=['url'], keep='first')
-            
-            # Log final statistics
-            self.logger.info(f"🎯 Total unique articles collected: {len(df)}")
-            if 'quality_score' in df.columns:
-                avg_quality = df['quality_score'].mean()
-                self.logger.info(f"📈 Average content quality score: {avg_quality:.2f}")
-        
-        return df
 
     def collect_financial_news_combined(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK, max_results: int = 1000) -> pd.DataFrame:
         """Enhanced combined collection with intelligent source balancing"""
@@ -817,6 +668,7 @@ class NewsCollector:
                         article_data = {
                             'ticker': ticker,
                             'title': article.get('title'),
+                            'category': Config.get_sector(ticker),
                             'content': content,
                             'source': article.get('source', {}).get('name'),
                             'published_at': article.get('publishedAt'),
