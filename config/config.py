@@ -14,6 +14,7 @@ class Config:
     REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
     REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'FinancialSentimentBot/1.0')
     EVENTREGISTRY_KEY = os.getenv('EVENT_REGISTRY_API_KEY')
+    BZ_KEY = os.getenv('BZ_KEY')
     
     # Data Collection Settings
     DEFAULT_NEWS_DAYS_BACK = 30
@@ -27,7 +28,8 @@ class Config:
         'AAPL',  # Information Technology
         'JPM',
         'XOM',  # Energy
-        'JNJ',  # Healthcare   
+        'JNJ',  # Healthcare
+        "VOO", "SPY", "QQQ", "SOXX", "IWM", "ARKX"   
 
 
     ]
@@ -38,9 +40,17 @@ class Config:
     ]
     
     BROAD_MARKET_KEYWORDS = [
-    "market", "stocks", "economy", "inflation", "interest rates",
-    "NASDAQ", "S&P 500", "Dow Jones", "ETF", "bull market", "bear market"
+    # Pure ticker symbols (for Benzinga and matching)
+    "VOO", "SPY", "QQQ", "SOXX", "IWM", "ARKX",
+    
+    # Additional search terms (for NewsAPI/Event Registry)
+    "Vanguard S&P 500 ETF",
+    "SPDR S&P 500",
+    "Invesco QQQ",
+    "iShares Semiconductor ETF",
+    "iShares Russell 2000"
     ]
+
 
     # Sector mapping (manual for ETFs and special cases)
     TICKER_SECTORS = {

@@ -300,8 +300,12 @@ class NewsCollector:
         elif self.source == "eventregistry":
             self.api_key = Config.EVENTREGISTRY_KEY
             self.base_url = "https://eventregistry.org/api/v1/article/getArticles"
+        elif self.source == "benzinga":  # ✅ ADD THIS
+            self.api_key = Config.BZ_KEY
+            self.base_url = "https://api.benzinga.com/api/v2/news"
         else:
-            raise ValueError("Unsupported source. Choose 'newsapi' or 'eventregistry'.")
+            raise ValueError("Unsupported source. Choose 'newsapi', 'eventregistry', or 'benzinga'.")
+
 
         self.logger = logging.getLogger(__name__)
 
@@ -345,9 +349,12 @@ class NewsCollector:
         if self.source == "newsapi":
             url = f"{self.base_url}/top-headlines"
             params = {'apiKey': self.api_key, 'country': 'us', 'pageSize': 1}
-        else:
+        elif self.source == "eventregistry":
             url = self.base_url
             params = {'apiKey': self.api_key, 'action': 'getArticles', 'keyword': 'test', 'articlesCount': 1}
+        elif self.source == "benzinga":  # ✅ ADD THIS
+            url = self.base_url
+            params = {'token': self.api_key, 'pageSize': 1}
 
         for attempt in range(self.max_retries):
             try:
@@ -553,6 +560,103 @@ class NewsCollector:
             
             df = pd.DataFrame(all_articles)
             return df
+        
+        elif self.source == "benzinga":
+            page = 0  # Benzinga uses 0-indexed pages
+            collected = 0
+            all_articles = []
+            
+            # Benzinga uses tickers directly - extract uppercase short tickers
+            tickers = ",".join([kw for kw in self.broadmarketkeywords if kw.isupper() and len(kw) <= 5])
+            self.logger.info(f"🎯 Benzinga: Searching for tickers: {tickers}")
+            
+            while collected < max_results:
+                params = {
+                    "token": self.api_key,
+                    "tickers": tickers,
+                    "pageSize": min(100, max_results - collected),
+                    "page": page,
+                    "displayOutput": "full",
+                    "dateFrom": (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d'),
+                    "dateTo": datetime.now().strftime('%Y-%m-%d')
+                }
+                
+                self.logger.info(f"📡 Benzinga: Requesting page {page} (pageSize: {params['pageSize']})")
+                self.logger.debug(f"🔍 Benzinga request params: {params}")
+                
+                data = self._make_api_request(self.base_url, params)
+                
+                # Enhanced debugging
+                if not data:
+                    self.logger.warning(f"❌ Benzinga API returned no data at page {page}")
+                    break
+                
+                # Log response structure
+                self.logger.debug(f"📦 Benzinga response type: {type(data)}")
+                if isinstance(data, dict):
+                    self.logger.debug(f"📦 Benzinga response keys: {list(data.keys())}")
+                    # Handle potential nested structure
+                    articles = data.get('data', data.get('articles', []))
+                elif isinstance(data, list):
+                    articles = data
+                else:
+                    self.logger.error(f"❌ Unexpected Benzinga response format: {type(data)}")
+                    articles = []
+                
+                if not articles:
+                    self.logger.info(f"📭 Benzinga: No more articles available at page {page}")
+                    break
+                
+                self.logger.info(f"📰 Benzinga page {page}: Found {len(articles)} articles")
+                
+                # Track how many articles pass content filter
+                valid_articles = 0
+                skipped_short = 0
+                
+                for article in articles:
+                    content = article.get('body', '') or article.get('teaser', '')
+                    
+                    if len(content.strip()) < 50:
+                        skipped_short += 1
+                        continue
+                    
+                    article_data = {
+                        'title': article.get('title'),
+                        'content': content,
+                        'source': 'Benzinga',
+                        'published_at': article.get('created'),
+                        'url': article.get('url'),
+                        'category': self._detect_etf_category(article.get('title', ''), content),
+                        'tickers': article.get('stocks', []),  # Benzinga provides ticker tags
+                        'collected_at': datetime.now()
+                    }
+                    all_articles.append(article_data)
+                    valid_articles += 1
+                
+                self.logger.info(f"✅ Benzinga page {page}: {valid_articles} valid, {skipped_short} skipped (too short)")
+                
+                collected += len(articles)
+                page += 1
+                
+                # Safety check to prevent infinite loops
+                if page > 50:
+                    self.logger.warning(f"⚠️ Benzinga: Reached page limit (50), stopping collection")
+                    break
+            
+            self.logger.info(f"🎯 Benzinga collection complete: {len(all_articles)} total articles")
+            
+            # Log category breakdown
+            if all_articles:
+                df = pd.DataFrame(all_articles)
+                if 'category' in df.columns:
+                    self.logger.info("📋 Benzinga category breakdown:")
+                    for category, count in df['category'].value_counts().items():
+                        self.logger.info(f"  • {category}: {count} articles")
+                return df
+            else:
+                self.logger.warning("⚠️ Benzinga: No articles collected - check API key, tickers, or date range")
+                return pd.DataFrame()
+
         
         else:
             self.logger.error(f"Unsupported source: {self.source}")
