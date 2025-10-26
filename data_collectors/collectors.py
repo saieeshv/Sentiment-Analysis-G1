@@ -1,33 +1,169 @@
 import logging
 import pandas as pd
+from datetime import datetime, timedelta, date 
 from config.config import Config
-from data_collectors.yfinance_collector import YFinanceCollector
 from data_collectors.reddit_collector import RedditCollector
 from data_collectors.news_collector import NewsCollector
 from utils.data_processor import DataProcessor
 
 logger = logging.getLogger(__name__)
 
-def collect_all_data():
-    """Main data collection function"""
-    logger.info("🚀 Starting data collection...")
 
+def collect_all_data():
+    """Main data collection function with per-ticker date range alignment"""
+    logger.info("🚀 Starting data collection...")
+    
+    days_back = Config.DEFAULT_NEWS_DAYS_BACK
     tickers = Config.DEFAULT_TICKERS
     etf_tickers = Config.BROAD_MARKET_ETFS 
     processor = DataProcessor()
 
     # Initialize collectors
-    yf_collector = YFinanceCollector(tickers + etf_tickers)
-    reddit_collector = RedditCollector()
-    
-    # Primary: StockNewsAPI, Backup: NewsAPI
     stock_news_collector = NewsCollector(source="stocknewsapi")
     newsapi_collector = NewsCollector(source="newsapi")
+    reddit_collector = RedditCollector()
 
-    # ========== STOCK DATA ==========
-    logger.info("📊 Collecting stock data...")
-    stock_data = yf_collector.get_stock_data()
-    logger.info(f"✅ Stock data collected: {len(stock_data)} rows")
+    # ========== COLLECT NEWS FIRST ==========
+    logger.info("📰 Collecting news data first to determine date ranges...")
+    
+    # Collect ETF news
+    logger.info(f"📰 Collecting ETF-specific news...")
+    etf_news = stock_news_collector.collect_etf_news_with_min_days(
+    etf_tickers, 
+    min_trading_days=40,
+    max_results_per_ticker=200
+    )
+    logger.info(f"✅ ETF news collected: {len(etf_news)} articles")
+    
+    # Collect broad market news
+    logger.info(f"📰 Collecting broad market news...")
+    broad_market_news_stock = stock_news_collector.collect_financial_news(
+        days_back=days_back,
+        max_results=500
+    )
+    logger.info(f"  ✅ StockNewsAPI returned: {len(broad_market_news_stock)} articles")
+    
+    # Optional NewsAPI backup
+    try:
+        broad_market_news_newsapi = newsapi_collector.collect_financial_news(
+            days_back=days_back,
+            max_results=100
+        )
+        logger.info(f"  ✅ NewsAPI backup returned: {len(broad_market_news_newsapi)} articles")
+    except Exception as e:
+        logger.warning(f"  ⚠️ NewsAPI backup failed: {e}")
+        broad_market_news_newsapi = pd.DataFrame()
+    
+    broad_market_news = pd.concat(
+        [broad_market_news_stock, broad_market_news_newsapi], 
+        ignore_index=True
+    )
+    
+    # Collect ticker news
+    logger.info(f"📰 Collecting ticker-specific news...")
+    ticker_news = stock_news_collector.collect_ticker_news_with_min_days(
+    tickers,
+    min_trading_days=40,
+    max_results_per_ticker=200
+    )
+    logger.info(f"✅ Ticker news collected: {len(ticker_news)} articles")
+
+    # ========== DETERMINE PER-TICKER DATE RANGES ==========
+    ticker_date_ranges = {}
+    
+    # Get date ranges from ticker-specific news
+    if not ticker_news.empty:
+        ticker_news['published_at'] = pd.to_datetime(
+            ticker_news['published_at'], 
+            format='mixed',
+            utc=True
+        )
+        
+        for ticker in tickers:
+            ticker_articles = ticker_news[ticker_news['ticker'] == ticker]
+            if not ticker_articles.empty:
+                ticker_date_ranges[ticker] = {
+                    'start': ticker_articles['published_at'].min().date(),
+                    'end': ticker_articles['published_at'].max().date(),
+                    'count': len(ticker_articles)
+                }
+                logger.info(f"📅 {ticker} news range: {ticker_date_ranges[ticker]['start']} to {ticker_date_ranges[ticker]['end']} ({ticker_date_ranges[ticker]['count']} articles)")
+    
+    # Get date ranges from ETF news
+    if not etf_news.empty:
+        etf_news['published_at'] = pd.to_datetime(
+            etf_news['published_at'], 
+            format='mixed',
+            utc=True
+        )
+        
+        for ticker in etf_tickers:
+            ticker_articles = etf_news[etf_news['ticker'] == ticker]
+            if not ticker_articles.empty:
+                ticker_date_ranges[ticker] = {
+                    'start': ticker_articles['published_at'].min().date(),
+                    'end': ticker_articles['published_at'].max().date(),
+                    'count': len(ticker_articles)
+                }
+                logger.info(f"📅 {ticker} news range: {ticker_date_ranges[ticker]['start']} to {ticker_date_ranges[ticker]['end']} ({ticker_date_ranges[ticker]['count']} articles)")
+    
+    # Fallback for tickers with no news
+    default_end = datetime.now().date()
+    default_start = (datetime.now() - timedelta(days=days_back)).date()
+    
+    for ticker in tickers + etf_tickers:
+        if ticker not in ticker_date_ranges:
+            ticker_date_ranges[ticker] = {
+                'start': default_start,
+                'end': default_end,
+                'count': 0
+            }
+            logger.warning(f"⚠️ {ticker}: No news found, using default range")
+
+    # ========== COLLECT STOCK DATA PER TICKER ==========
+    logger.info(f"📊 Collecting stock data with per-ticker date ranges...")
+    
+    all_stock_data = []
+    
+    for ticker in tickers + etf_tickers:
+        date_range = ticker_date_ranges[ticker]
+        
+        try:
+            logger.info(f"📈 Fetching {ticker} data from {date_range['start']} to {date_range['end']}")
+            
+            import yfinance as yf
+            stock = yf.Ticker(ticker)
+            hist = stock.history(
+                start=date_range['start'].strftime('%Y-%m-%d'),
+                end=date_range['end'].strftime('%Y-%m-%d'),
+                interval='1d'
+            )
+            
+            if hist.empty:
+                logger.warning(f"⚠️ No price data for {ticker}")
+                continue
+            
+            # Reset index and add metadata
+            hist = hist.reset_index()
+            hist['ticker'] = ticker
+            hist['category'] = Config.get_sector(ticker)
+            hist['news_count'] = date_range['count']
+            
+            all_stock_data.append(hist)
+            logger.info(f"✅ Collected {len(hist)} price points for {ticker} (aligned with {date_range['count']} news articles)")
+            
+        except Exception as e:
+            logger.error(f"❌ Error fetching {ticker}: {e}")
+            continue
+    
+    # Combine all stock data
+    if all_stock_data:
+        stock_data = pd.concat(all_stock_data, ignore_index=True)
+        stock_data.columns = stock_data.columns.str.lower()
+        logger.info(f"📊 Total stock data: {len(stock_data)} rows across {len(tickers) + len(etf_tickers)} tickers")
+    else:
+        stock_data = pd.DataFrame()
+        logger.warning("⚠️ No stock data collected")
 
     # ========== REDDIT DATA ==========
     logger.info("📱 Collecting Reddit data...")
@@ -40,54 +176,7 @@ def collect_all_data():
     broad_market_reddit_posts = reddit_collector.collect_broad_market_posts_last_month()
     logger.info(f"✅ Broad market Reddit posts collected: {len(broad_market_reddit_posts)} posts")
 
-    # ========== ETF NEWS (Individual ETFs) ==========
-    logger.info("📰 Collecting ETF-specific news...")
-    etf_news = stock_news_collector.collect_etf_news(
-        etf_tickers, 
-        days_back=30, 
-        max_results_per_etf=50
-    )
-    logger.info(f"✅ ETF news collected: {len(etf_news)} articles")
-    
-    if not etf_news.empty and 'category' in etf_news.columns:
-        logger.info("📋 ETF news category breakdown:")
-        for category, count in etf_news['category'].value_counts().items():
-            logger.info(f"  • {category}: {count} articles")
-
-    # ========== BROAD MARKET NEWS ==========
-    logger.info("📰 Collecting broad market news...")
-    
-    # Primary: StockNewsAPI
-    broad_market_news_stock = stock_news_collector.collect_financial_news(
-        days_back=30, 
-        max_results=500
-    )
-    logger.info(f"  ✅ StockNewsAPI returned: {len(broad_market_news_stock)} articles")
-    
-    # Backup: NewsAPI (optional, for diversity)
-    try:
-        broad_market_news_newsapi = newsapi_collector.collect_financial_news(max_results=100)
-        logger.info(f"  ✅ NewsAPI backup returned: {len(broad_market_news_newsapi)} articles")
-    except Exception as e:
-        logger.warning(f"  ⚠️ NewsAPI backup failed: {e}")
-        broad_market_news_newsapi = pd.DataFrame()
-    
-    # Combine broad market news sources
-    broad_market_news = pd.concat(
-        [broad_market_news_stock, broad_market_news_newsapi], 
-        ignore_index=True
-    )
-    logger.info(f"📊 Total broad market news: {len(broad_market_news)} articles")
-
-    # ========== TICKER-SPECIFIC NEWS ==========
-    logger.info("📰 Collecting ticker-specific news...")
-    ticker_news = stock_news_collector.collect_ticker_news(
-        tickers, 
-        max_results=50
-    )
-    logger.info(f"✅ Ticker news collected: {len(ticker_news)} articles")
-
-    # ========== COMBINE ALL FINANCIAL NEWS ==========
+    # ========== COMBINE FINANCIAL NEWS ==========
     financial_news = pd.concat([etf_news, broad_market_news], ignore_index=True)
     logger.info(f"📊 Total financial news (ETF + broad market): {len(financial_news)} articles")
 
@@ -114,7 +203,7 @@ def collect_all_data():
         broad_reddit_file = processor.save_data(broad_market_reddit_posts, "broad_market_reddit_posts")
         logger.info(f"📁 Saved broad market Reddit posts: {broad_reddit_file} ({len(broad_market_reddit_posts)} rows)")
 
-    # Save financial news (ETF + broad market)
+    # Save financial news
     if not financial_news.empty:
         financial_news_deduped = financial_news.drop_duplicates(subset=['url'], keep='first')
         logger.info(f"🔄 Removed {len(financial_news) - len(financial_news_deduped)} duplicate financial news articles")
@@ -134,7 +223,7 @@ def collect_all_data():
     else:
         logger.warning("⚠️ No ticker-specific news collected")
 
-    # ========== COMBINE FOR SENTIMENT ANALYSIS ==========
+    # Combine for sentiment analysis
     logger.info("🔗 Combining data sources...")
     
     # Combine all Reddit data
@@ -183,15 +272,19 @@ def collect_all_data():
         logger.info("🧹 Cleaned cache directory")
     except Exception as e:
         logger.warning(f"⚠️ Could not clean cache: {e}")
-    
+
     # ========== FINAL SUMMARY ==========
     logger.info("✅ Data collection completed!")
     logger.info("="*60)
-    logger.info("📊 COLLECTION SUMMARY:")
-    logger.info(f"  • Stock data: {len(stock_data) if not stock_data.empty else 0} rows")
-    logger.info(f"  • Reddit posts: {len(combined_reddit) if not combined_reddit.empty else 0} posts")
-    logger.info(f"  • ETF news: {len(etf_news) if not etf_news.empty else 0} articles")
-    logger.info(f"  • Broad market news: {len(broad_market_news) if not broad_market_news.empty else 0} articles")
-    logger.info(f"  • Ticker news: {len(ticker_news) if not ticker_news.empty else 0} articles")
+    logger.info("📊 COLLECTION SUMMARY (Per-Ticker Alignment):")
+    
+    for ticker in tickers + etf_tickers:
+        if ticker in ticker_date_ranges:
+            dr = ticker_date_ranges[ticker]
+            stock_count = len(stock_data[stock_data['ticker'] == ticker]) if not stock_data.empty else 0
+            logger.info(f"  • {ticker}: {dr['start']} to {dr['end']} | {dr['count']} news | {stock_count} price points")
+    
+    logger.info(f"\n  • Total stock data: {len(stock_data) if not stock_data.empty else 0} rows")
+    logger.info(f"  • Total news articles: {len(combined_news) if not combined_news.empty else 0}")
     logger.info(f"  • Total text entries: {len(text_data) if 'text_data' in locals() and not text_data.empty else 0}")
     logger.info("="*60)

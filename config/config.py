@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import yfinance as yf
 import logging
 
-# Load environment variables
 load_dotenv()
 
 class Config:
@@ -13,7 +12,7 @@ class Config:
     REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
     REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
     REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'FinancialSentimentBot/1.0')
-    STOCKNEWS_API_KEY = os.getenv('STOCKNEWS_API_KEY')  
+    STOCKNEWS_API_KEY = os.getenv('STOCKNEWS_API_KEY')
     
     # Data Collection Settings
     DEFAULT_NEWS_DAYS_BACK = 30
@@ -33,7 +32,7 @@ class Config:
         'BA'     # Industrials
     ]
 
-    # Broad Market ETFs (for individual news collection)
+    # Broad Market ETFs
     BROAD_MARKET_ETFS = [
         "VOO",   # Vanguard S&P 500
         "SPY",   # SPDR S&P 500
@@ -43,7 +42,7 @@ class Config:
         "ARKX"   # ARK Space Exploration
     ]
     
-    # Broad market keywords (for NewsAPI general market news)
+    # Broad market keywords
     BROAD_MARKET_KEYWORDS = [
         "stock market",
         "financial markets",
@@ -54,19 +53,31 @@ class Config:
         "market volatility"
     ]
 
-    # Sector mapping (manual for ETFs and special cases)
+    # ✅ ADD THIS LINE - Cache for sector lookups
+    _SECTOR_CACHE = {}
+
+    # ✅ ADD THIS - Sector mapping to prevent API calls
     TICKER_SECTORS = {
         # Broad Market ETFs
         'VOO': 'Broad Market ETF',
-        'SOXX': 'Semiconductors ETF',
-        'IWM': 'Small Cap ETF',
         'SPY': 'Broad Market ETF',
         'QQQ': 'Technology ETF',
+        'SOXX': 'Semiconductors ETF',
+        'IWM': 'Small Cap ETF',
         'ARKX': 'Innovation ETF',
         'VTI': 'Broad Market ETF',
         'IWV': 'Broad Market ETF',
         'IJH': 'Mid Cap ETF',
-        'MACRO': 'Market-Wide'
+        'MACRO': 'Market-Wide',
+        
+        # Individual stocks - prevents API calls
+        'AAPL': 'Technology',
+        'JPM': 'Financial Services',
+        'UNH': 'Healthcare',
+        'AMZN': 'Consumer Cyclical',
+        'WMT': 'Consumer Defensive',
+        'T': 'Communication Services',
+        'BA': 'Industrials'
     }
 
     # Date range settings
@@ -79,22 +90,35 @@ class Config:
     
     @staticmethod
     def get_sector(ticker: str) -> str:
-        """Get sector for any ticker using yfinance with fallback to manual mapping."""
+        """Get sector for any ticker with caching to prevent rate limits."""
+        # Check manual mapping first
         if ticker in Config.TICKER_SECTORS:
             return Config.TICKER_SECTORS[ticker]
         
+        # Check cache
+        if ticker in Config._SECTOR_CACHE:
+            return Config._SECTOR_CACHE[ticker]
+        
+        # Only fetch from yfinance if not in manual mapping or cache
         try:
             stock = yf.Ticker(ticker)
             info = stock.info
+            
             sector = info.get('sector', None)
             if sector:
+                Config._SECTOR_CACHE[ticker] = sector
                 return sector
+            
             industry = info.get('industry', None)
             if industry:
+                Config._SECTOR_CACHE[ticker] = industry
                 return industry
+                
         except Exception as e:
-            logging.warning(f"Could not fetch sector for {ticker}: {e}")
+            logging.debug(f"Could not fetch sector for {ticker}: {e}")
         
+        # Cache 'Other' to avoid repeated failed lookups
+        Config._SECTOR_CACHE[ticker] = 'Other'
         return 'Other'
     
     @staticmethod
