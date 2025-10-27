@@ -122,40 +122,56 @@ def collect_all_data():
 
     # ========== COLLECT STOCK DATA PER TICKER ==========
     logger.info(f"📊 Collecting stock data with per-ticker date ranges...")
-    
+
     all_stock_data = []
-    
+
     for ticker in tickers + etf_tickers:
         date_range = ticker_date_ranges[ticker]
         
-        try:
-            logger.info(f"📈 Fetching {ticker} data from {date_range['start']} to {date_range['end']}")
-            
-            import yfinance as yf
-            stock = yf.Ticker(ticker)
-            hist = stock.history(
-                start=date_range['start'].strftime('%Y-%m-%d'),
-                end=date_range['end'].strftime('%Y-%m-%d'),
-                interval='1d'
-            )
-            
-            if hist.empty:
-                logger.warning(f"⚠️ No price data for {ticker}")
-                continue
-            
-            # Reset index and add metadata
-            hist = hist.reset_index()
-            hist['ticker'] = ticker
-            hist['category'] = Config.get_sector(ticker)
-            hist['news_count'] = date_range['count']
-            
-            all_stock_data.append(hist)
-            logger.info(f"✅ Collected {len(hist)} price points for {ticker} (aligned with {date_range['count']} news articles)")
-            
-        except Exception as e:
-            logger.error(f"❌ Error fetching {ticker}: {e}")
-            continue
-    
+        # Add retry logic with backoff
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    import time
+                    wait_time = 2 ** attempt  # 2s, 4s, 8s
+                    logger.info(f"⏳ Waiting {wait_time}s before retry {attempt + 1}")
+                    time.sleep(wait_time)
+                
+                logger.info(f"📈 Fetching {ticker} data from {date_range['start']} to {date_range['end']}")
+                
+                import yfinance as yf
+                stock = yf.Ticker(ticker)
+                hist = stock.history(
+                    start=date_range['start'].strftime('%Y-%m-%d'),
+                    end=date_range['end'].strftime('%Y-%m-%d'),
+                    interval='1d'
+                )
+                
+                if hist.empty:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"⚠️ No data for {ticker}, retrying...")
+                        continue
+                    else:
+                        logger.warning(f"⚠️ No price data for {ticker} after {max_retries} attempts")
+                        break
+                
+                # Success!
+                hist = hist.reset_index()
+                hist['ticker'] = ticker
+                hist['category'] = Config.get_sector(ticker)
+                hist['news_count'] = date_range['count']
+                
+                all_stock_data.append(hist)
+                logger.info(f"✅ Collected {len(hist)} price points for {ticker}")
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"⚠️ Error fetching {ticker} (attempt {attempt + 1}): {e}")
+                else:
+                    logger.error(f"❌ Failed to fetch {ticker} after {max_retries} attempts: {e}")
+
     # Combine all stock data
     if all_stock_data:
         stock_data = pd.concat(all_stock_data, ignore_index=True)

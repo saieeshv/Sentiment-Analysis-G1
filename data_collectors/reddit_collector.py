@@ -432,28 +432,20 @@ class RedditCollector:
                 except Exception as e:
                     self.logger.error(f"❌ Error searching {ticker} in r/{sub_name}: {str(e)}")
         
-            df = pd.DataFrame(ticker_posts)
-    
-            if not df.empty:
-                df = df.drop_duplicates(subset=['id'], keep='first')
-                df = df.sort_values(['relevance_score', 'quality_score'], ascending=[False, False])
-                
-                # ADD THIS: Automatically add category
-                from config.config import Config
-                df['category'] = df['ticker'].apply(lambda x: Config.get_sector(x))
-            
-            self._cache_data(cache_key, df)
-            return df
-            
-        # Remove duplicates and sort by relevance
+        # MOVED OUTSIDE THE LOOP - Process all collected posts at once
+        df = pd.DataFrame(ticker_posts)
+
         if not df.empty:
             df = df.drop_duplicates(subset=['id'], keep='first')
             df = df.sort_values(['relevance_score', 'quality_score'], ascending=[False, False])
+            
+            # Add category
+            from config.config import Config
+            df['category'] = df['ticker'].apply(lambda x: Config.get_sector(x))
         
-        # Cache the results
         self._cache_data(cache_key, df)
-        
         return df
+
     
     def _calculate_ticker_relevance(self, content: str, title: str, ticker: str) -> float:
         """Calculate how relevant an article is to a specific ticker"""
