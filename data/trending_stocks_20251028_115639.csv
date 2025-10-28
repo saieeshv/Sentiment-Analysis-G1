@@ -1,0 +1,21 @@
+ticker,name,total_mentions,positive_mentions,negative_mentions,neutral_mentions,sentiment_score,category,collected_at,date_range
+TSLA,"Tesla, Inc.",195,62,69,64,-0.054,Consumer Cyclical,2025-10-28 11:56:35.565204,last7days
+AMZN,"Amazon.com, Inc.",154,73,47,34,0.253,Consumer Cyclical,2025-10-28 11:56:35.565238,last7days
+GLD,SPDR Gold Shares,151,46,52,53,-0.06,Other,2025-10-28 11:56:35.687234,last7days
+GLDM,SPDR Gold MiniShares,142,41,51,50,-0.106,Other,2025-10-28 11:56:35.783954,last7days
+IAU,iShares Gold Trust,141,41,51,49,-0.106,Other,2025-10-28 11:56:35.902410,last7days
+AAAU,Perth Mint Physical Gold ETF,141,41,52,48,-0.117,Other,2025-10-28 11:56:36.001466,last7days
+DGL,Invesco DB Gold,140,41,51,48,-0.107,Other,2025-10-28 11:56:36.098362,last7days
+UGL,ProShares Ultra Gold,140,41,51,48,-0.107,Other,2025-10-28 11:56:36.205814,last7days
+OUNZ,VanEck Merk Gold Trust,140,41,51,48,-0.107,Other,2025-10-28 11:56:36.303253,last7days
+NFLX,"Netflix, Inc.",139,50,59,30,-0.097,Communication Services,2025-10-28 11:56:36.443328,last7days
+GOOGL,Alphabet Inc.,132,88,20,24,0.773,Communication Services,2025-10-28 11:56:36.534840,last7days
+SGOL,ETFS Physical Swiss Gold,102,28,36,38,-0.118,Other,2025-10-28 11:56:36.668285,last7days
+DBP,Invesco DB Precious Metals,101,28,35,38,-0.104,Other,2025-10-28 11:56:36.777664,last7days
+BAR,GraniteShares Gold Trust,101,28,35,38,-0.104,Other,2025-10-28 11:56:36.925414,last7days
+META,"Meta Platforms, Inc.",93,47,26,20,0.339,Communication Services,2025-10-28 11:56:37.077425,last7days
+NVDA,NVIDIA Corporation,89,60,8,21,0.876,Technology,2025-10-28 11:56:37.185591,last7days
+INTC,Intel Corporation,87,57,8,22,0.845,Technology,2025-10-28 11:56:37.299781,last7days
+AAPL,Apple Inc.,87,50,16,21,0.586,Technology,2025-10-28 11:56:37.299797,last7days
+USO,United States Oil,86,36,16,34,0.349,Other,2025-10-28 11:56:37.395866,last7days
+OIH,VanEck Vectors Oil Services ETF,86,33,17,36,0.279,Other,2025-10-28 11:56:37.554145,last7days

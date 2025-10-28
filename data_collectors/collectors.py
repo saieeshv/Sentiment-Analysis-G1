@@ -6,6 +6,7 @@ from data_collectors.reddit_collector import RedditCollector
 from data_collectors.news_collector import NewsCollector
 from utils.data_processor import DataProcessor
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,8 +21,34 @@ def collect_all_data():
 
     # Initialize collectors
     stock_news_collector = NewsCollector(source="stocknewsapi")
-    newsapi_collector = NewsCollector(source="newsapi")
     reddit_collector = RedditCollector()
+
+    # ========== COLLECT TRENDING STOCKS ==========
+    logger.info("📈 Collecting trending stocks...")
+    trending_stocks = stock_news_collector.collect_trending_stocks(
+        date_range="last7days",
+        min_mentions=50,
+        max_results=20
+    )
+
+    if not trending_stocks.empty:
+        trending_file = processor.save_data(trending_stocks, "trending_stocks")
+        logger.info(f"📁 Saved trending stocks: {trending_file} ({len(trending_stocks)} stocks)")
+        logger.info(f"   • Most mentioned: {trending_stocks.iloc[0]['ticker']} ({trending_stocks.iloc[0]['total_mentions']} mentions)")
+
+    # ========== COLLECT ALL NEWS ARTICLES ==========
+    logger.info("📰 Collecting all news articles from category endpoint...")
+    all_news_articles = stock_news_collector.collect_all_news(
+        items_per_page=100,
+        max_pages=20,
+        section="alltickers"
+    )
+
+    if not all_news_articles.empty:
+        all_news_file = processor.save_data(all_news_articles, "all_news_articles")
+        logger.info(f"📁 Saved all news articles: {all_news_file} ({len(all_news_articles)} articles)")
+        logger.info(f"   • Unique sources: {all_news_articles['source_name'].nunique()}")
+        logger.info(f"   • Date range: {all_news_articles['date'].min()} to {all_news_articles['date'].max()}")
 
     # ========== COLLECT NEWS FIRST ==========
     logger.info("📰 Collecting news data first to determine date ranges...")
@@ -29,42 +56,26 @@ def collect_all_data():
     # Collect ETF news
     logger.info(f"📰 Collecting ETF-specific news...")
     etf_news = stock_news_collector.collect_etf_news_with_min_days(
-    etf_tickers, 
-    min_trading_days=40,
-    max_results_per_ticker=200
+        etf_tickers, 
+        min_trading_days=40,
+        max_results_per_ticker=200
     )
     logger.info(f"✅ ETF news collected: {len(etf_news)} articles")
     
     # Collect broad market news
     logger.info(f"📰 Collecting broad market news...")
-    broad_market_news_stock = stock_news_collector.collect_financial_news(
+    broad_market_news = stock_news_collector.collect_financial_news(
         days_back=days_back,
         max_results=500
     )
-    logger.info(f"  ✅ StockNewsAPI returned: {len(broad_market_news_stock)} articles")
-    
-    # Optional NewsAPI backup
-    try:
-        broad_market_news_newsapi = newsapi_collector.collect_financial_news(
-            days_back=days_back,
-            max_results=100
-        )
-        logger.info(f"  ✅ NewsAPI backup returned: {len(broad_market_news_newsapi)} articles")
-    except Exception as e:
-        logger.warning(f"  ⚠️ NewsAPI backup failed: {e}")
-        broad_market_news_newsapi = pd.DataFrame()
-    
-    broad_market_news = pd.concat(
-        [broad_market_news_stock, broad_market_news_newsapi], 
-        ignore_index=True
-    )
+    logger.info(f"  ✅ StockNewsAPI returned: {len(broad_market_news)} articles")
     
     # Collect ticker news
     logger.info(f"📰 Collecting ticker-specific news...")
     ticker_news = stock_news_collector.collect_ticker_news_with_min_days(
-    tickers,
-    min_trading_days=40,
-    max_results_per_ticker=200
+        tickers,
+        min_trading_days=40,
+        max_results_per_ticker=200
     )
     logger.info(f"✅ Ticker news collected: {len(ticker_news)} articles")
 
@@ -282,17 +293,16 @@ def collect_all_data():
     else:
         logger.warning("⚠️ No text data to combine")
 
-    # Clean up cache
-    try:
-        NewsCollector.clear_cache_dir("cache")
-        logger.info("🧹 Cleaned cache directory")
-    except Exception as e:
-        logger.warning(f"⚠️ Could not clean cache: {e}")
-
     # ========== FINAL SUMMARY ==========
     logger.info("✅ Data collection completed!")
     logger.info("="*60)
     logger.info("📊 COLLECTION SUMMARY (Per-Ticker Alignment):")
+    
+    if not trending_stocks.empty:
+        logger.info(f"  • Trending stocks: {len(trending_stocks)} stocks")
+    
+    if not all_news_articles.empty:
+        logger.info(f"  • All news articles: {len(all_news_articles)} articles")
     
     for ticker in tickers + etf_tickers:
         if ticker in ticker_date_ranges:

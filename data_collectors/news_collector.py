@@ -1,34 +1,12 @@
 import requests
 import pandas as pd
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import time
-import hashlib
-import shutil
 from pathlib import Path
 
-# Content extraction libraries
-try:
-    from newspaper import Article, Config as NewspaperConfig
-    NEWSPAPER4K_AVAILABLE = True
-except ImportError:
-    NEWSPAPER4K_AVAILABLE = False
-    logging.warning("newspaper4k not available, falling back to trafilatura only")
-
-try:
-    import trafilatura
-    TRAFILATURA_AVAILABLE = True
-except ImportError:
-    TRAFILATURA_AVAILABLE = False
-    logging.warning("trafilatura not available")
-
-import nltk
 from config.config import Config
-
-# Ensure required NLTK corpora are downloaded
-nltk.download('punkt', quiet=True)
-nltk.download('punkt_tab', quiet=True)
 
 
 class TokenBucket:
@@ -66,20 +44,15 @@ class NewsCollector:
     def __init__(self, source: str = "stocknewsapi"):
         self.source = source.lower()
         
-        if self.source == "newsapi":
-            self.api_key = Config.NEWSAPI_KEY
-            self.base_url = "https://newsapi.org/v2"
-        elif self.source == "stocknewsapi":
+        if self.source == "stocknewsapi":
             self.api_key = Config.STOCKNEWS_API_KEY
             self.base_url = "https://stocknewsapi.com/api/v1"
         else:
-            raise ValueError("Unsupported source. Choose 'newsapi' or 'stocknewsapi'.")
+            raise ValueError("Only 'stocknewsapi' is supported.")
         
         self.logger = logging.getLogger(__name__)
-        self.broadmarketkeywords = Config.BROAD_MARKET_KEYWORDS
         self.ratelimiter = TokenBucket(capacity=10, refill_rate=1.0)
-        self.cache_dir = Path("cache")
-        self.cache_dir.mkdir(exist_ok=True)
+
 
     def _make_api_request(self, url: str, params: Dict[str, Any], max_retries: int = 3) -> Optional[Dict]:
         """Make API request with rate limiting and retries"""
@@ -117,75 +90,6 @@ class NewsCollector:
         
         return None
 
-    def _get_content_with_fallback(self, article: Dict, url_key: str, content_key: str) -> str:
-        """Extract full article content with multiple fallback methods"""
-        url = article.get(url_key)
-        content = article.get(content_key, '')
-        
-        # If content is already substantial, use it
-        if content and len(content.strip()) > 200:
-            return content
-        
-        # Try to fetch full content from URL
-        if url:
-            cache_key = hashlib.md5(url.encode()).hexdigest()
-            cache_file = self.cache_dir / f"{cache_key}.txt"
-            
-            # Check cache first
-            if cache_file.exists():
-                try:
-                    return cache_file.read_text(encoding='utf-8')
-                except Exception:
-                    pass
-            
-            # Try newspaper4k first
-            if NEWSPAPER4K_AVAILABLE:
-                try:
-                    config = NewspaperConfig()
-                    config.browser_user_agent = 'Mozilla/5.0'
-                    config.request_timeout = 10
-                    
-                    news_article = Article(url, config=config)
-                    news_article.download()
-                    news_article.parse()
-                    
-                    if news_article.text and len(news_article.text) > 100:
-                        try:
-                            cache_file.write_text(news_article.text, encoding='utf-8')
-                        except Exception:
-                            pass
-                        return news_article.text
-                except Exception as e:
-                    self.logger.debug(f"newspaper4k failed for {url}: {e}")
-            
-            # Fallback to trafilatura
-            if TRAFILATURA_AVAILABLE:
-                try:
-                    downloaded = trafilatura.fetch_url(url)
-                    if downloaded:
-                        extracted = trafilatura.extract(downloaded)
-                        if extracted and len(extracted) > 100:
-                            try:
-                                cache_file.write_text(extracted, encoding='utf-8')
-                            except Exception:
-                                pass
-                            return extracted
-                except Exception as e:
-                    self.logger.debug(f"trafilatura failed for {url}: {e}")
-        
-        return content if content else ""
-
-    def _detect_etf_category(self, title: str, content: str) -> str:
-        """Detect which ETF this article is about based on title and content"""
-        text = f"{title} {content}".upper()
-        
-        for ticker, sector in Config.TICKER_SECTORS.items():
-            if ticker == 'MACRO':
-                continue
-            if ticker in text:
-                return sector
-        
-        return 'Market-Wide'
 
     def collect_etf_news_with_min_days(self, etf_tickers: List[str], min_trading_days: int = 40, 
                                         max_results_per_ticker: int = 200) -> pd.DataFrame:
@@ -198,70 +102,70 @@ class NewsCollector:
         for ticker in etf_tickers:
             self.logger.info(f"🔍 Collecting ETF news for {ticker} (target: {min_trading_days}+ trading days)")
             
-            if self.source == "stocknewsapi":
-                page = 1
-                ticker_articles = []
-                target_days_reached = False
+            page = 1
+            ticker_articles = []
+            target_days_reached = False
+            
+            while not target_days_reached and len(ticker_articles) < max_results_per_ticker:
+                params = {
+                    "tickers": ticker,
+                    "items": 50,
+                    "page": page,
+                    "token": self.api_key
+                }
                 
-                while not target_days_reached and len(ticker_articles) < max_results_per_ticker:
-                    params = {
-                        "tickers": ticker,
-                        "items": 50,
-                        "page": page,
-                        "token": self.api_key
+                data = self._make_api_request(self.base_url, params)
+                
+                if not data or "data" not in data:
+                    self.logger.warning(f"❌ No more data for {ticker}")
+                    break
+                
+                articles = data.get("data", [])
+                if not articles:
+                    self.logger.info(f"📭 {ticker}: No more articles at page {page}")
+                    break
+                
+                for article in articles:
+                    article_data = {
+                        'ticker': ticker,
+                        'title': article.get('title'),
+                        'content': article.get('text', ''),
+                        'source': article.get('source_name'),
+                        'published_at': article.get('date'),
+                        'url': article.get('news_url'),
+                        'category': Config.get_sector(ticker),
+                        'sentiment': article.get('sentiment'),
+                        'tickers': article.get('tickers', []),
+                        'collected_at': datetime.now()
                     }
-                    
-                    data = self._make_api_request(self.base_url, params)
-                    
-                    if not data or "data" not in data:
-                        self.logger.warning(f"❌ StockNewsAPI: No more data for {ticker}")
-                        break
-                    
-                    articles = data.get("data", [])
-                    if not articles:
-                        self.logger.info(f"📭 {ticker}: No more articles at page {page}")
-                        break
-                    
-                    for article in articles:
-                        article_data = {
-                            'ticker': ticker,
-                            'title': article.get('title'),
-                            'content': article.get('text', ''),
-                            'source': article.get('source_name'),
-                            'published_at': article.get('date'),
-                            'url': article.get('news_url'),
-                            'category': Config.get_sector(ticker),
-                            'sentiment': article.get('sentiment'),
-                            'tickers': article.get('tickers', []),
-                            'collected_at': datetime.now()
-                        }
-                        ticker_articles.append(article_data)
-                    
-                    # Check if we've covered enough trading days
-                    if ticker_articles:
-                        df_temp = pd.DataFrame(ticker_articles)
-                        df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
-                        
-                        date_range = (df_temp['published_at'].max().date() - df_temp['published_at'].min().date()).days
-                        estimated_trading_days = int(date_range * 5 / 7)
-                        
-                        if estimated_trading_days >= min_trading_days:
-                            target_days_reached = True
-                            self.logger.info(f"✅ {ticker}: Target reached - {len(ticker_articles)} articles spanning ~{estimated_trading_days} trading days")
-                        else:
-                            self.logger.info(f"📊 {ticker}: Page {page} - {len(ticker_articles)} articles, ~{estimated_trading_days} trading days (need {min_trading_days}+)")
-                    
-                    page += 1
-                    
-                    if page > 10:
-                        self.logger.warning(f"⚠️ {ticker}: Reached page limit, stopping at {len(ticker_articles)} articles")
-                        break
+                    ticker_articles.append(article_data)
                 
-                all_articles.extend(ticker_articles)
+                # Check if we've covered enough trading days
+                if ticker_articles:
+                    df_temp = pd.DataFrame(ticker_articles)
+                    df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
+                    
+                    date_range = (df_temp['published_at'].max().date() - df_temp['published_at'].min().date()).days
+                    estimated_trading_days = int(date_range * 5 / 7)
+                    
+                    if estimated_trading_days >= min_trading_days:
+                        target_days_reached = True
+                        self.logger.info(f"✅ {ticker}: Target reached - {len(ticker_articles)} articles spanning ~{estimated_trading_days} trading days")
+                    else:
+                        self.logger.info(f"📊 {ticker}: Page {page} - {len(ticker_articles)} articles, ~{estimated_trading_days} trading days (need {min_trading_days}+)")
+                
+                page += 1
+                
+                if page > 10:
+                    self.logger.warning(f"⚠️ {ticker}: Reached page limit, stopping at {len(ticker_articles)} articles")
+                    break
+            
+            all_articles.extend(ticker_articles)
         
         df = pd.DataFrame(all_articles)
         self.logger.info(f"✅ Total ETF news: {len(df)} articles across {len(etf_tickers)} ETFs")
         return df
+
 
     def collect_ticker_news_with_min_days(self, tickers: List[str], min_trading_days: int = 40,
                                            max_results_per_ticker: int = 200) -> pd.DataFrame:
@@ -273,190 +177,281 @@ class NewsCollector:
         for ticker in tickers:
             self.logger.info(f"🔍 Collecting news for {ticker} (target: {min_trading_days}+ trading days)")
             
-            if self.source == "stocknewsapi":
-                page = 1
-                ticker_articles = []
-                target_days_reached = False
+            page = 1
+            ticker_articles = []
+            target_days_reached = False
+            
+            while not target_days_reached and len(ticker_articles) < max_results_per_ticker:
+                params = {
+                    "tickers": ticker,
+                    "items": 50,
+                    "page": page,
+                    "token": self.api_key
+                }
                 
-                while not target_days_reached and len(ticker_articles) < max_results_per_ticker:
-                    params = {
-                        "tickers": ticker,
-                        "items": 50,
-                        "page": page,
-                        "token": self.api_key
+                data = self._make_api_request(self.base_url, params)
+                
+                if not data or "data" not in data:
+                    self.logger.warning(f"❌ No more data for {ticker}")
+                    break
+                
+                articles = data.get("data", [])
+                if not articles:
+                    self.logger.info(f"📭 {ticker}: No more articles at page {page}")
+                    break
+                
+                for article in articles:
+                    article_data = {
+                        'ticker': ticker,
+                        'title': article.get('title'),
+                        'content': article.get('text', ''),
+                        'source': article.get('source_name'),
+                        'published_at': article.get('date'),
+                        'url': article.get('news_url'),
+                        'category': Config.get_sector(ticker),
+                        'sentiment': article.get('sentiment'),
+                        'tickers': article.get('tickers', []),
+                        'collected_at': datetime.now()
                     }
-                    
-                    data = self._make_api_request(self.base_url, params)
-                    
-                    if not data or "data" not in data:
-                        self.logger.warning(f"❌ StockNewsAPI: No more data for {ticker}")
-                        break
-                    
-                    articles = data.get("data", [])
-                    if not articles:
-                        self.logger.info(f"📭 {ticker}: No more articles at page {page}")
-                        break
-                    
-                    for article in articles:
-                        article_data = {
-                            'ticker': ticker,
-                            'title': article.get('title'),
-                            'content': article.get('text', ''),
-                            'source': article.get('source_name'),
-                            'published_at': article.get('date'),
-                            'url': article.get('news_url'),
-                            'category': Config.get_sector(ticker),
-                            'sentiment': article.get('sentiment'),
-                            'tickers': article.get('tickers', []),
-                            'collected_at': datetime.now()
-                        }
-                        ticker_articles.append(article_data)
-                    
-                    # Check coverage
-                    if ticker_articles:
-                        df_temp = pd.DataFrame(ticker_articles)
-                        df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
-                        
-                        date_range = (df_temp['published_at'].max().date() - df_temp['published_at'].min().date()).days
-                        estimated_trading_days = int(date_range * 5 / 7)
-                        
-                        if estimated_trading_days >= min_trading_days:
-                            target_days_reached = True
-                            self.logger.info(f"✅ {ticker}: Target reached - {len(ticker_articles)} articles spanning ~{estimated_trading_days} trading days")
-                        else:
-                            self.logger.info(f"📊 {ticker}: Page {page} - {len(ticker_articles)} articles, ~{estimated_trading_days} trading days")
-                    
-                    page += 1
-                    
-                    if page > 10:
-                        self.logger.warning(f"⚠️ {ticker}: Reached page limit")
-                        break
+                    ticker_articles.append(article_data)
                 
-                all_articles.extend(ticker_articles)
-                self.logger.info(f"✅ Collected {len(ticker_articles)} articles for {ticker}")
+                # Check coverage
+                if ticker_articles:
+                    df_temp = pd.DataFrame(ticker_articles)
+                    df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
+                    
+                    date_range = (df_temp['published_at'].max().date() - df_temp['published_at'].min().date()).days
+                    estimated_trading_days = int(date_range * 5 / 7)
+                    
+                    if estimated_trading_days >= min_trading_days:
+                        target_days_reached = True
+                        self.logger.info(f"✅ {ticker}: Target reached - {len(ticker_articles)} articles spanning ~{estimated_trading_days} trading days")
+                    else:
+                        self.logger.info(f"📊 {ticker}: Page {page} - {len(ticker_articles)} articles, ~{estimated_trading_days} trading days")
+                
+                page += 1
+                
+                if page > 10:
+                    self.logger.warning(f"⚠️ {ticker}: Reached page limit")
+                    break
+            
+            all_articles.extend(ticker_articles)
+            self.logger.info(f"✅ Collected {len(ticker_articles)} articles for {ticker}")
         
         return pd.DataFrame(all_articles)
 
+
     def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK, max_results: int = 500) -> pd.DataFrame:
         """Collect general broad market news"""
-        if self.source == "stocknewsapi":
-            all_articles = []
+        all_articles = []
+        
+        url = f"{self.base_url}/trending-headlines"
+        params = {
+            "items": min(max_results, 50),
+            "page": 1,
+            "token": self.api_key
+        }
+        
+        self.logger.info(f"📡 StockNewsAPI: Requesting trending market headlines")
+        
+        data = self._make_api_request(url, params)
+        
+        if not data or "data" not in data:
+            self.logger.warning(f"❌ StockNewsAPI: No trending headlines data")
+            return pd.DataFrame()
+        
+        articles = data.get("data", [])
+        self.logger.info(f"📰 StockNewsAPI: Found {len(articles)} trending headlines")
+        
+        for article in articles:
+            article_data = {
+                'title': article.get('title'),
+                'content': article.get('text', ''),
+                'source': article.get('source_name'),
+                'published_at': article.get('date'),
+                'url': article.get('news_url'),
+                'category': 'Market-Wide',
+                'sentiment': article.get('sentiment'),
+                'tickers': article.get('tickers', []),
+                'collected_at': datetime.now()
+            }
+            all_articles.append(article_data)
+        
+        df = pd.DataFrame(all_articles)
+        return df
+
+
+    def collect_trending_stocks(self, date_range: str = "last7days", 
+                                 min_mentions: int = 0,
+                                 max_results: int = 20) -> pd.DataFrame:
+        """
+        Collect trending stocks based on mention frequency and sentiment.
+        Returns raw API data without additional sentiment classification.
+        
+        Args:
+            date_range: Time period for data ('last7days', 'last30days')
+            min_mentions: Minimum number of mentions to include
+            max_results: Maximum number of stocks to return
             
-            url = f"{self.base_url}/trending-headlines"
+        Returns:
+            DataFrame with trending stock data from the API
+        """
+        self.logger.info(f"📈 Collecting trending stocks for {date_range}...")
+        
+        url = f"{self.base_url}/top-mention"
+        params = {
+            "date": date_range,
+            "token": self.api_key
+        }
+        
+        data = self._make_api_request(url, params)
+        
+        if not data or "data" not in data:
+            self.logger.warning("❌ No trending stocks data returned")
+            return pd.DataFrame()
+        
+        stocks = data.get("data", {}).get("all", [])
+        
+        if not stocks:
+            self.logger.warning("📭 No stocks found in trending data")
+            return pd.DataFrame()
+        
+        self.logger.info(f"✅ Retrieved {len(stocks)} trending stocks")
+        
+        # Process the data - keep API structure as-is
+        processed_stocks = []
+        for stock in stocks:
+            # Filter by minimum mentions
+            if stock.get('total_mentions', 0) < min_mentions:
+                continue
+            
+            stock_data = {
+                'ticker': stock.get('ticker'),
+                'name': stock.get('name'),
+                'total_mentions': stock.get('total_mentions', 0),
+                'positive_mentions': stock.get('positive_mentions', 0),
+                'negative_mentions': stock.get('negative_mentions', 0),
+                'neutral_mentions': stock.get('neutral_mentions', 0),
+                'sentiment_score': stock.get('sentiment_score', 0),
+                'category': Config.get_sector(stock.get('ticker', '')),
+                'collected_at': datetime.now(),
+                'date_range': date_range
+            }
+            processed_stocks.append(stock_data)
+        
+        # Sort by total mentions and limit results
+        processed_stocks = sorted(processed_stocks, 
+                                  key=lambda x: x['total_mentions'], 
+                                  reverse=True)[:max_results]
+        
+        df = pd.DataFrame(processed_stocks)
+        
+        self.logger.info(f"📊 Processed {len(df)} trending stocks")
+        if not df.empty:
+            self.logger.info(f"   Top stock: {df.iloc[0]['ticker']} with {df.iloc[0]['total_mentions']} mentions")
+            self.logger.info(f"   Sentiment range: {df['sentiment_score'].min():.3f} to {df['sentiment_score'].max():.3f}")
+        
+        return df
+
+
+    def collect_all_news(self, items_per_page: int = 100, 
+                         max_pages: int = 20,
+                         section: str = "alltickers") -> pd.DataFrame:
+        """
+        Collect all news articles from the category endpoint with pagination.
+        Fetches news across multiple pages to gather comprehensive market coverage.
+        
+        Args:
+            items_per_page: Number of items per page (max 100)
+            max_pages: Maximum number of pages to fetch (default 20)
+            section: Category section to query (default 'alltickers')
+            
+        Returns:
+            DataFrame with all collected news articles
+        """
+        self.logger.info(f"📰 Collecting news from category endpoint ({max_pages} pages)...")
+        
+        all_articles = []
+        
+        for page in range(1, max_pages + 1):
+            self.logger.info(f"   Fetching page {page}/{max_pages}...")
+            
+            url = f"{self.base_url}/category"
             params = {
-                "items": min(max_results, 50),
-                "page": 1,
+                "section": section,
+                "items": items_per_page,
+                "page": page,
                 "token": self.api_key
             }
-            
-            self.logger.info(f"📡 StockNewsAPI: Requesting trending market headlines")
             
             data = self._make_api_request(url, params)
             
             if not data or "data" not in data:
-                self.logger.warning(f"❌ StockNewsAPI: No trending headlines data")
-                return pd.DataFrame()
+                self.logger.warning(f"❌ No data returned for page {page}")
+                continue
             
             articles = data.get("data", [])
-            self.logger.info(f"📰 StockNewsAPI: Found {len(articles)} trending headlines")
             
-            for article in articles:
-                article_data = {
-                    'title': article.get('title'),
-                    'content': article.get('text', ''),
-                    'source': article.get('source_name'),
-                    'published_at': article.get('date'),
-                    'url': article.get('news_url'),
-                    'category': 'Market-Wide',
-                    'sentiment': article.get('sentiment'),
-                    'tickers': article.get('tickers', []),
-                    'collected_at': datetime.now()
-                }
-                all_articles.append(article_data)
+            if not articles:
+                self.logger.info(f"📭 No more articles found at page {page}, stopping pagination")
+                break
             
-            df = pd.DataFrame(all_articles)
-            return df
+            self.logger.info(f"   ✅ Retrieved {len(articles)} articles from page {page}")
+            all_articles.extend(articles)
+            
+            # Small delay to respect rate limits
+            time.sleep(0.5)
         
-        elif self.source == "newsapi":
-            url = f"{self.base_url}/everything"
-            page = 1
-            collected = 0
-            
-            query = " OR ".join(self.broadmarketkeywords)
-            from_date = datetime.now() - timedelta(days=days_back)
-            
-            all_articles = []
-            while collected < max_results:
-                params = {
-                    'apiKey': self.api_key,
-                    'q': query,
-                    'from': from_date.strftime('%Y-%m-%d'),
-                    'language': 'en',
-                    'sortBy': 'publishedAt',
-                    'pageSize': min(100, max_results - collected),
-                    'page': page
-                }
-                
-                data = self._make_api_request(url, params)
-                if not data or data.get("status") == "error":
-                    self.logger.warning(f"NewsAPI error or no data on page {page}")
-                    break
-                
-                articles = data.get('articles', [])
-                if not articles:
-                    self.logger.info(f"NewsAPI no more articles available at page {page}")
-                    break
-                
-                for article in articles:
-                    content = self._get_content_with_fallback(article, 'url', 'content')
-                    if len(content.strip()) < 50:
-                        continue
-                    
-                    article_data = {
-                        'title': article.get('title'),
-                        'content': content,
-                        'source': article.get('source', {}).get('name'),
-                        'published_at': article.get('publishedAt'),
-                        'url': article.get('url'),
-                        'category': self._detect_etf_category(article.get('title', ''), content),
-                        'collected_at': datetime.now()
-                    }
-                    all_articles.append(article_data)
-                
-                collected += len(articles)
-                page += 1
-                
-            df = pd.DataFrame(all_articles)
-            return df
-        
-        else:
-            self.logger.error(f"Unsupported source: {self.source}")
+        if not all_articles:
+            self.logger.warning("📭 No articles collected")
             return pd.DataFrame()
+        
+        self.logger.info(f"✅ Total articles collected: {len(all_articles)}")
+        
+        # Process articles into DataFrame
+        processed_articles = []
+        for article in all_articles:
+            article_data = {
+                'news_url': article.get('news_url'),
+                'image_url': article.get('image_url'),
+                'title': article.get('title'),
+                'text': article.get('text'),
+                'source_name': article.get('source_name'),
+                'date': article.get('date'),
+                'sentiment': article.get('sentiment'),
+                'type': article.get('type'),
+                'tickers': ','.join(article.get('tickers', [])) if article.get('tickers') else '',
+                'topics': ','.join(article.get('topics', [])) if article.get('topics') else '',
+                'collected_at': datetime.now()
+            }
+            processed_articles.append(article_data)
+        
+        df = pd.DataFrame(processed_articles)
+        
+        # Convert date string to datetime
+        if not df.empty and 'date' in df.columns:
+            try:
+                df['date'] = pd.to_datetime(df['date'])
+            except Exception as e:
+                self.logger.warning(f"Could not parse dates: {e}")
+        
+        self.logger.info(f"📊 Processed {len(df)} articles")
+        if not df.empty:
+            self.logger.info(f"   Date range: {df['date'].min()} to {df['date'].max()}")
+            self.logger.info(f"   Unique tickers: {df['tickers'].str.split(',').explode().nunique()}")
+            sentiment_dist = df['sentiment'].value_counts()
+            self.logger.info(f"   Sentiment: {sentiment_dist.to_dict()}")
+        
+        return df
+
 
     def test_connection(self):
         """Test API connection"""
-        if self.source == "stocknewsapi":
-            params = {
-                "token": self.api_key,
-                "items": 1,
-                "page": 1,
-                "tickers": "AAPL"
-            }
-            data = self._make_api_request(self.base_url, params)
-            return data is not None and "data" in data
-        
-        elif self.source == "newsapi":
-            url = f"{self.base_url}/top-headlines"
-            params = {'apiKey': self.api_key, 'country': 'us', 'pageSize': 1}
-            data = self._make_api_request(url, params)
-            return data is not None and data.get('status') == 'ok'
-        
-        return False
-
-    @staticmethod
-    def clear_cache_dir(cache_dir: str):
-        """Clear the cache directory"""
-        cache_path = Path(cache_dir)
-        if cache_path.exists():
-            shutil.rmtree(cache_path)
-            cache_path.mkdir(exist_ok=True)
+        params = {
+            "token": self.api_key,
+            "items": 1,
+            "page": 1,
+            "tickers": "AAPL"
+        }
+        data = self._make_api_request(self.base_url, params)
+        return data is not None and "data" in data
