@@ -4,7 +4,9 @@ from dotenv import load_dotenv
 import yfinance as yf
 import logging
 
+
 load_dotenv()
+
 
 class Config:
     # API Keys
@@ -32,14 +34,25 @@ class Config:
         'BA'     # Industrials
     ]
 
-    # Broad Market ETFs
+    # GICS 11 Sector ETFs (SPDR Select Sector ETFs)
     BROAD_MARKET_ETFS = [
+        # Core Market ETFs
         "VOO",   # Vanguard S&P 500
         "SPY",   # SPDR S&P 500
-        "QQQ",   # Invesco QQQ
-        "SOXX",  # iShares Semiconductor
-        "IWM",   # iShares Russell 2000
-        "ARKX"   # ARK Space Exploration
+        "QQQ",   # Invesco QQQ (Nasdaq 100)
+        
+        # GICS 11 Sectors (SPDR Select Sector ETFs)
+        "XLK",   # Technology
+        "XLF",   # Financials
+        "XLV",   # Healthcare
+        "XLC",   # Communication Services
+        "XLE",   # Energy
+        "XLY",   # Consumer Discretionary
+        "XLI",   # Industrials
+        "XLU",   # Utilities
+        "XLP",   # Consumer Staples
+        "XLRE",  # Real Estate
+        "XLB"    # Materials
     ]
     
     # Broad market keywords
@@ -53,31 +66,35 @@ class Config:
         "market volatility"
     ]
 
-    # ✅ ADD THIS LINE - Cache for sector lookups
+    # ✅ Cache for sector lookups
     _SECTOR_CACHE = {}
 
-    # ✅ ADD THIS - Sector mapping to prevent API calls
+    # ✅ Sector mapping - ETFs only (prevents unnecessary API calls)
     TICKER_SECTORS = {
-        # Broad Market ETFs
+        # Core Market ETFs
         'VOO': 'Broad Market ETF',
         'SPY': 'Broad Market ETF',
         'QQQ': 'Technology ETF',
-        'SOXX': 'Semiconductors ETF',
-        'IWM': 'Small Cap ETF',
-        'ARKX': 'Innovation ETF',
         'VTI': 'Broad Market ETF',
         'IWV': 'Broad Market ETF',
+        'IWM': 'Small Cap ETF',
         'IJH': 'Mid Cap ETF',
-        'MACRO': 'Market-Wide',
         
-        # Individual stocks - prevents API calls
-        'AAPL': 'Technology',
-        'JPM': 'Financial Services',
-        'UNH': 'Healthcare',
-        'AMZN': 'Consumer Cyclical',
-        'WMT': 'Consumer Defensive',
-        'T': 'Communication Services',
-        'BA': 'Industrials'
+        # GICS 11 Sector ETFs (SPDR)
+        'XLK': 'Technology',
+        'XLF': 'Financial Services',
+        'XLV': 'Healthcare',
+        'XLC': 'Communication Services',
+        'XLE': 'Energy',
+        'XLY': 'Consumer Discretionary',
+        'XLI': 'Industrials',
+        'XLU': 'Utilities',
+        'XLP': 'Consumer Staples',
+        'XLRE': 'Real Estate',
+        'XLB': 'Materials',
+        
+        # Market-wide
+        'MACRO': 'Market-Wide',
     }
 
     # Date range settings

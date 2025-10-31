@@ -1,0 +1,21 @@
+ticker,name,total_mentions,positive_mentions,negative_mentions,neutral_mentions,sentiment_score,category,collected_at,date_range
+NVDA,NVIDIA Corporation,263,173,12,78,0.918,Technology,2025-10-31 20:37:49.857492,last7days
+AMZN,"Amazon.com, Inc.",209,95,71,43,0.172,Consumer Cyclical,2025-10-31 20:37:49.950192,last7days
+MSFT,Microsoft Corporation,162,98,24,40,0.685,Technology,2025-10-31 20:37:50.037122,last7days
+META,"Meta Platforms, Inc.",141,50,40,51,0.106,Communication Services,2025-10-31 20:37:50.133428,last7days
+GOOGL,Alphabet Inc.,136,92,10,34,0.904,Communication Services,2025-10-31 20:37:50.243555,last7days
+AAPL,Apple Inc.,124,76,11,37,0.786,Technology,2025-10-31 20:37:50.349653,last7days
+GLD,SPDR Gold Shares,106,43,29,34,0.198,Other,2025-10-31 20:37:50.424021,last7days
+AAAU,Perth Mint Physical Gold ETF,104,43,29,32,0.202,Other,2025-10-31 20:37:50.523359,last7days
+IAU,iShares Gold Trust,103,44,28,31,0.233,Other,2025-10-31 20:37:50.611112,last7days
+GLDM,SPDR Gold MiniShares,103,43,28,32,0.218,Other,2025-10-31 20:37:50.712551,last7days
+DGL,Invesco DB Gold,103,43,28,32,0.218,Other,2025-10-31 20:37:50.820648,last7days
+OUNZ,VanEck Merk Gold Trust,102,43,28,31,0.221,Other,2025-10-31 20:37:50.906634,last7days
+UGL,ProShares Ultra Gold,101,42,28,31,0.208,Other,2025-10-31 20:37:51.002282,last7days
+TSLA,"Tesla, Inc.",84,41,21,22,0.357,Consumer Cyclical,2025-10-31 20:37:51.095526,last7days
+SGOL,ETFS Physical Swiss Gold,76,28,22,26,0.118,Other,2025-10-31 20:37:51.197808,last7days
+DBP,Invesco DB Precious Metals,76,28,21,27,0.138,Other,2025-10-31 20:37:51.291748,last7days
+BAR,GraniteShares Gold Trust,76,28,21,27,0.138,Other,2025-10-31 20:37:51.382906,last7days
+XOP,SPDR S&P Oil & Gas Explor & Prodtn ETF,67,19,27,21,-0.179,Other,2025-10-31 20:37:51.472785,last7days
+OIH,VanEck Vectors Oil Services ETF,67,19,28,20,-0.201,Other,2025-10-31 20:37:51.563510,last7days
+IEO,iShares US Oil & Gas Explor & Prod ETF,65,19,27,19,-0.185,Other,2025-10-31 20:37:51.653378,last7days
