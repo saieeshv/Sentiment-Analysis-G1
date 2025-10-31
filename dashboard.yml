@@ -1,0 +1,22 @@
+pages:
+  - title: "Broad Market Sentiment Dashboard"
+    charts:
+      - title: "Market Sentiment Over Time"
+        type: line
+        data: broad_market_topic_modeling_20251030_045701.csv
+        x: date
+        y: sentiment_score
+        color: sentiment
+      - title: "Top 10 Trending Topics"
+        type: bar
+        data: broad_market_topic_modeling_20251030_045701.csv
+        x: topics
+        y: topics
+        aggregation: count
+        top: 10
+      - title: "Sentiment Distribution"
+        type: bar
+        data: broad_market_topic_modeling_20251030_045701.csv
+        x: sentiment
+        y: sentiment
+        aggregation: count
