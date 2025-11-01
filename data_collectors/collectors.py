@@ -6,12 +6,10 @@ from data_collectors.reddit_collector import RedditCollector
 from data_collectors.news_collector import NewsCollector
 from utils.data_processor import DataProcessor
 
-
 logger = logging.getLogger(__name__)
 
-
 def collect_all_data():
-    """Main data collection function with per-ticker date range alignment"""
+    """Main data collection function with 1-year/50-article minimum correlation focus"""
     logger.info("🚀 Starting data collection...")
     
     days_back = Config.DEFAULT_NEWS_DAYS_BACK
@@ -50,15 +48,15 @@ def collect_all_data():
         logger.info(f"   • Unique sources: {all_news_articles['source_name'].nunique()}")
         logger.info(f"   • Date range: {all_news_articles['date'].min()} to {all_news_articles['date'].max()}")
 
-    # ========== COLLECT NEWS FIRST ==========
-    logger.info("📰 Collecting news data first to determine date ranges...")
+    # ========== COLLECT NEWS FOR CORRELATION ANALYSIS ==========
+    logger.info("📰 Collecting news for correlation (MINIMUM 1 year AND 50 articles per ticker)...")
     
     # Collect ETF news
     logger.info(f"📰 Collecting ETF-specific news...")
-    etf_news = stock_news_collector.collect_etf_news_with_min_days(
+    etf_news = stock_news_collector.collect_etf_news_for_correlation(
         etf_tickers, 
-        min_trading_days=40,
-        max_results_per_ticker=200
+        min_articles=50,
+        min_days_back=365
     )
     logger.info(f"✅ ETF news collected: {len(etf_news)} articles")
     
@@ -72,14 +70,14 @@ def collect_all_data():
     
     # Collect ticker news
     logger.info(f"📰 Collecting ticker-specific news...")
-    ticker_news = stock_news_collector.collect_ticker_news_with_min_days(
+    ticker_news = stock_news_collector.collect_ticker_news_for_correlation(
         tickers,
-        min_trading_days=40,
-        max_results_per_ticker=200
+        min_articles=50,
+        min_days_back=365
     )
     logger.info(f"✅ Ticker news collected: {len(ticker_news)} articles")
 
-    # ========== DETERMINE PER-TICKER DATE RANGES ==========
+    # ========== DETERMINE PER-TICKER DATE RANGES FROM NEWS ==========
     ticker_date_ranges = {}
     
     # Get date ranges from ticker-specific news
@@ -93,12 +91,18 @@ def collect_all_data():
         for ticker in tickers:
             ticker_articles = ticker_news[ticker_news['ticker'] == ticker]
             if not ticker_articles.empty:
+                date_span_days = (ticker_articles['published_at'].max() - ticker_articles['published_at'].min()).days
                 ticker_date_ranges[ticker] = {
                     'start': ticker_articles['published_at'].min().date(),
                     'end': ticker_articles['published_at'].max().date(),
-                    'count': len(ticker_articles)
+                    'count': len(ticker_articles),
+                    'span_days': date_span_days
                 }
-                logger.info(f"📅 {ticker} news range: {ticker_date_ranges[ticker]['start']} to {ticker_date_ranges[ticker]['end']} ({ticker_date_ranges[ticker]['count']} articles)")
+                logger.info(
+                    f"📅 {ticker} news range: {ticker_date_ranges[ticker]['start']} to "
+                    f"{ticker_date_ranges[ticker]['end']} "
+                    f"({ticker_date_ranges[ticker]['span_days']} days, {ticker_date_ranges[ticker]['count']} articles)"
+                )
     
     # Get date ranges from ETF news
     if not etf_news.empty:
@@ -111,29 +115,35 @@ def collect_all_data():
         for ticker in etf_tickers:
             ticker_articles = etf_news[etf_news['ticker'] == ticker]
             if not ticker_articles.empty:
+                date_span_days = (ticker_articles['published_at'].max() - ticker_articles['published_at'].min()).days
                 ticker_date_ranges[ticker] = {
                     'start': ticker_articles['published_at'].min().date(),
                     'end': ticker_articles['published_at'].max().date(),
-                    'count': len(ticker_articles)
+                    'count': len(ticker_articles),
+                    'span_days': date_span_days
                 }
-                logger.info(f"📅 {ticker} news range: {ticker_date_ranges[ticker]['start']} to {ticker_date_ranges[ticker]['end']} ({ticker_date_ranges[ticker]['count']} articles)")
+                logger.info(
+                    f"📅 {ticker} news range: {ticker_date_ranges[ticker]['start']} to "
+                    f"{ticker_date_ranges[ticker]['end']} "
+                    f"({ticker_date_ranges[ticker]['span_days']} days, {ticker_date_ranges[ticker]['count']} articles)"
+                )
     
-    # Fallback for tickers with no news
+    # Fallback for tickers with no news (use 1 year default)
     default_end = datetime.now().date()
-    default_start = (datetime.now() - timedelta(days=days_back)).date()
+    default_start = (datetime.now() - timedelta(days=365)).date()
     
     for ticker in tickers + etf_tickers:
         if ticker not in ticker_date_ranges:
             ticker_date_ranges[ticker] = {
                 'start': default_start,
                 'end': default_end,
-                'count': 0
+                'count': 0,
+                'span_days': 365
             }
-            logger.warning(f"⚠️ {ticker}: No news found, using default range")
+            logger.warning(f"⚠️ {ticker}: No news found, using 1-year default range")
 
-    # ========== COLLECT STOCK DATA PER TICKER ==========
-    logger.info(f"📊 Collecting stock data with per-ticker date ranges...")
-
+    # ========== COLLECT STOCK DATA MATCHING NEWS DATE RANGES ==========
+    logger.info(f"📊 Collecting stock data aligned with news date ranges...")
     all_stock_data = []
 
     for ticker in tickers + etf_tickers:
@@ -149,7 +159,7 @@ def collect_all_data():
                     logger.info(f"⏳ Waiting {wait_time}s before retry {attempt + 1}")
                     time.sleep(wait_time)
                 
-                logger.info(f"📈 Fetching {ticker} data from {date_range['start']} to {date_range['end']}")
+                logger.info(f"📈 Fetching {ticker} prices from {date_range['start']} to {date_range['end']}")
                 
                 import yfinance as yf
                 stock = yf.Ticker(ticker)
@@ -296,7 +306,7 @@ def collect_all_data():
     # ========== FINAL SUMMARY ==========
     logger.info("✅ Data collection completed!")
     logger.info("="*60)
-    logger.info("📊 COLLECTION SUMMARY (Per-Ticker Alignment):")
+    logger.info("📊 COLLECTION SUMMARY (MINIMUM 1 Year + 50 Articles per Ticker):")
     
     if not trending_stocks.empty:
         logger.info(f"  • Trending stocks: {len(trending_stocks)} stocks")
@@ -308,7 +318,10 @@ def collect_all_data():
         if ticker in ticker_date_ranges:
             dr = ticker_date_ranges[ticker]
             stock_count = len(stock_data[stock_data['ticker'] == ticker]) if not stock_data.empty else 0
-            logger.info(f"  • {ticker}: {dr['start']} to {dr['end']} | {dr['count']} news | {stock_count} price points")
+            logger.info(
+                f"  • {ticker}: {dr['start']} to {dr['end']} ({dr['span_days']} days) | "
+                f"{dr['count']} news | {stock_count} price points"
+            )
     
     logger.info(f"\n  • Total stock data: {len(stock_data) if not stock_data.empty else 0} rows")
     logger.info(f"  • Total news articles: {len(combined_news) if not combined_news.empty else 0}")
