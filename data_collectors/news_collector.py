@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import time
 from pathlib import Path
@@ -91,22 +91,35 @@ class NewsCollector:
         return None
 
 
-    def collect_etf_news_with_min_days(self, etf_tickers: List[str], min_trading_days: int = 40, 
-                                        max_results_per_ticker: int = 200) -> pd.DataFrame:
+    def collect_etf_news_for_correlation(self, etf_tickers: List[str],
+                                     min_articles: int = 50,
+                                     min_days_back: int = 365) -> pd.DataFrame:
         """
-        Collect ETF news ensuring minimum trading days coverage.
-        Continues collecting until date range spans at least min_trading_days.
+        Collect ETF news for correlation analysis: MINIMUM 50 articles AND MINIMUM 1 year of data.
+        Continues collecting beyond 1 year if needed to reach 50 articles.
+        
+        Args:
+            etf_tickers: List of ETF ticker symbols
+            min_articles: Minimum articles per ticker (default 50)
+            min_days_back: Minimum days to look back (default 365 = 1 year)
+        
+        Returns:
+            DataFrame with ETF news articles
         """
         all_articles = []
         
         for ticker in etf_tickers:
-            self.logger.info(f"🔍 Collecting ETF news for {ticker} (target: {min_trading_days}+ trading days)")
+            self.logger.info(f"🔍 Collecting ETF news for {ticker} (min: {min_articles} articles AND {min_days_back} days)")
             
             page = 1
             ticker_articles = []
-            target_days_reached = False
+            reached_one_year = False
             
-            while not target_days_reached and len(ticker_articles) < max_results_per_ticker:
+            # Calculate cutoff date (1 year back) - TIMEZONE-AWARE
+            from datetime import timezone
+            one_year_cutoff = datetime.now(timezone.utc) - timedelta(days=min_days_back)
+            
+            while True:
                 params = {
                     "tickers": ticker,
                     "items": 50,
@@ -121,11 +134,20 @@ class NewsCollector:
                     break
                 
                 articles = data.get("data", [])
+                
                 if not articles:
                     self.logger.info(f"📭 {ticker}: No more articles at page {page}")
                     break
                 
+                # Process articles and check conditions
                 for article in articles:
+                    article_date = pd.to_datetime(article.get('date'), format='mixed', utc=True)
+                    
+                    # Mark when we've passed 1 year
+                    if not reached_one_year and article_date < one_year_cutoff:
+                        reached_one_year = True
+                        self.logger.info(f"📅 {ticker}: Passed 1-year mark at {article_date.date()} ({len(ticker_articles)} articles so far)")
+                    
                     article_data = {
                         'ticker': ticker,
                         'title': article.get('title'),
@@ -136,52 +158,78 @@ class NewsCollector:
                         'category': Config.get_sector(ticker),
                         'sentiment': article.get('sentiment'),
                         'tickers': article.get('tickers', []),
-                        'collected_at': datetime.now()
+                        'collected_at': datetime.now(timezone.utc)
                     }
+                    
                     ticker_articles.append(article_data)
                 
-                # Check if we've covered enough trading days
-                if ticker_articles:
-                    df_temp = pd.DataFrame(ticker_articles)
-                    df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
-                    
-                    date_range = (df_temp['published_at'].max().date() - df_temp['published_at'].min().date()).days
-                    estimated_trading_days = int(date_range * 5 / 7)
-                    
-                    if estimated_trading_days >= min_trading_days:
-                        target_days_reached = True
-                        self.logger.info(f"✅ {ticker}: Target reached - {len(ticker_articles)} articles spanning ~{estimated_trading_days} trading days")
-                    else:
-                        self.logger.info(f"📊 {ticker}: Page {page} - {len(ticker_articles)} articles, ~{estimated_trading_days} trading days (need {min_trading_days}+)")
+                # Check if we've met BOTH conditions
+                if reached_one_year and len(ticker_articles) >= min_articles:
+                    self.logger.info(f"✅ {ticker}: Met both conditions - {len(ticker_articles)} articles AND passed 1 year")
+                    break
                 
                 page += 1
                 
-                if page > 10:
-                    self.logger.warning(f"⚠️ {ticker}: Reached page limit, stopping at {len(ticker_articles)} articles")
+                # Safety limit on pages (increased for longer collection)
+                if page > 50:
+                    self.logger.warning(f"⚠️ {ticker}: Reached page limit (50), stopping")
+                    self.logger.warning(f"  • Articles collected: {len(ticker_articles)}/{min_articles}")
+                    self.logger.warning(f"  • Passed 1 year: {'Yes' if reached_one_year else 'No'}")
                     break
             
             all_articles.extend(ticker_articles)
+            
+            # Log what we collected
+            if ticker_articles:
+                df_temp = pd.DataFrame(ticker_articles)
+                df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
+                date_range_days = (df_temp['published_at'].max() - df_temp['published_at'].min()).days
+                
+                self.logger.info(
+                    f"✅ {ticker}: Collected {len(ticker_articles)} articles "
+                    f"spanning {date_range_days} days "
+                    f"({df_temp['published_at'].min().date()} to {df_temp['published_at'].max().date()})"
+                )
+            else:
+                self.logger.warning(f"⚠️ {ticker}: No articles collected")
         
         df = pd.DataFrame(all_articles)
         self.logger.info(f"✅ Total ETF news: {len(df)} articles across {len(etf_tickers)} ETFs")
+        
         return df
 
 
-    def collect_ticker_news_with_min_days(self, tickers: List[str], min_trading_days: int = 40,
-                                           max_results_per_ticker: int = 200) -> pd.DataFrame:
+
+
+    def collect_ticker_news_for_correlation(self, tickers: List[str], 
+                                       min_articles: int = 50,
+                                       min_days_back: int = 365) -> pd.DataFrame:
         """
-        Collect ticker news ensuring minimum trading days coverage.
+        Collect news for correlation analysis: MINIMUM 50 articles AND MINIMUM 1 year of data.
+        Continues collecting beyond 1 year if needed to reach 50 articles.
+        
+        Args:
+            tickers: List of ticker symbols
+            min_articles: Minimum articles per ticker (default 50)
+            min_days_back: Minimum days to look back (default 365 = 1 year)
+        
+        Returns:
+            DataFrame with news articles and date ranges per ticker
         """
         all_articles = []
         
         for ticker in tickers:
-            self.logger.info(f"🔍 Collecting news for {ticker} (target: {min_trading_days}+ trading days)")
+            self.logger.info(f"🔍 Collecting news for {ticker} (min: {min_articles} articles AND {min_days_back} days)")
             
             page = 1
             ticker_articles = []
-            target_days_reached = False
+            reached_one_year = False
             
-            while not target_days_reached and len(ticker_articles) < max_results_per_ticker:
+            # Calculate cutoff date (1 year back) - TIMEZONE-AWARE
+            from datetime import timezone
+            one_year_cutoff = datetime.now(timezone.utc) - timedelta(days=min_days_back)
+            
+            while True:
                 params = {
                     "tickers": ticker,
                     "items": 50,
@@ -196,11 +244,20 @@ class NewsCollector:
                     break
                 
                 articles = data.get("data", [])
+                
                 if not articles:
                     self.logger.info(f"📭 {ticker}: No more articles at page {page}")
                     break
                 
+                # Process articles and check conditions
                 for article in articles:
+                    article_date = pd.to_datetime(article.get('date'), format='mixed', utc=True)
+                    
+                    # Mark when we've passed 1 year
+                    if not reached_one_year and article_date < one_year_cutoff:
+                        reached_one_year = True
+                        self.logger.info(f"📅 {ticker}: Passed 1-year mark at {article_date.date()} ({len(ticker_articles)} articles so far)")
+                    
                     article_data = {
                         'ticker': ticker,
                         'title': article.get('title'),
@@ -211,34 +268,46 @@ class NewsCollector:
                         'category': Config.get_sector(ticker),
                         'sentiment': article.get('sentiment'),
                         'tickers': article.get('tickers', []),
-                        'collected_at': datetime.now()
+                        'collected_at': datetime.now(timezone.utc)
                     }
+                    
                     ticker_articles.append(article_data)
                 
-                # Check coverage
-                if ticker_articles:
-                    df_temp = pd.DataFrame(ticker_articles)
-                    df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
-                    
-                    date_range = (df_temp['published_at'].max().date() - df_temp['published_at'].min().date()).days
-                    estimated_trading_days = int(date_range * 5 / 7)
-                    
-                    if estimated_trading_days >= min_trading_days:
-                        target_days_reached = True
-                        self.logger.info(f"✅ {ticker}: Target reached - {len(ticker_articles)} articles spanning ~{estimated_trading_days} trading days")
-                    else:
-                        self.logger.info(f"📊 {ticker}: Page {page} - {len(ticker_articles)} articles, ~{estimated_trading_days} trading days")
+                # Check if we've met BOTH conditions
+                if reached_one_year and len(ticker_articles) >= min_articles:
+                    self.logger.info(f"✅ {ticker}: Met both conditions - {len(ticker_articles)} articles AND passed 1 year")
+                    break
                 
                 page += 1
                 
-                if page > 10:
-                    self.logger.warning(f"⚠️ {ticker}: Reached page limit")
+                # Safety limit on pages (increased for longer collection)
+                if page > 50:
+                    self.logger.warning(f"⚠️ {ticker}: Reached page limit (50), stopping")
+                    self.logger.warning(f"  • Articles collected: {len(ticker_articles)}/{min_articles}")
+                    self.logger.warning(f"  • Passed 1 year: {'Yes' if reached_one_year else 'No'}")
                     break
             
             all_articles.extend(ticker_articles)
-            self.logger.info(f"✅ Collected {len(ticker_articles)} articles for {ticker}")
+            
+            # Log what we collected
+            if ticker_articles:
+                df_temp = pd.DataFrame(ticker_articles)
+                df_temp['published_at'] = pd.to_datetime(df_temp['published_at'], format='mixed', utc=True)
+                date_range_days = (df_temp['published_at'].max() - df_temp['published_at'].min()).days
+                
+                self.logger.info(
+                    f"✅ {ticker}: Collected {len(ticker_articles)} articles "
+                    f"spanning {date_range_days} days "
+                    f"({df_temp['published_at'].min().date()} to {df_temp['published_at'].max().date()})"
+                )
+            else:
+                self.logger.warning(f"⚠️ {ticker}: No articles collected")
         
-        return pd.DataFrame(all_articles)
+        df = pd.DataFrame(all_articles)
+        self.logger.info(f"✅ Total news: {len(df)} articles across {len(tickers)} tickers")
+        
+        return df
+
 
 
     def collect_financial_news(self, days_back: int = Config.DEFAULT_NEWS_DAYS_BACK, max_results: int = 500) -> pd.DataFrame:
