@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import time
 from datetime import datetime, timedelta, date 
 from config.config import Config
 from data_collectors.reddit_collector import RedditCollector
@@ -17,9 +18,11 @@ def collect_all_data():
     etf_tickers = Config.BROAD_MARKET_ETFS 
     processor = DataProcessor()
 
+
     # Initialize collectors
     stock_news_collector = NewsCollector(source="stocknewsapi")
     reddit_collector = RedditCollector()
+
 
     # ========== COLLECT TRENDING STOCKS ==========
     logger.info("📈 Collecting trending stocks...")
@@ -29,10 +32,15 @@ def collect_all_data():
         max_results=20
     )
 
+
     if not trending_stocks.empty:
         trending_file = processor.save_data(trending_stocks, "trending_stocks")
         logger.info(f"📁 Saved trending stocks: {trending_file} ({len(trending_stocks)} stocks)")
-        logger.info(f"   • Most mentioned: {trending_stocks.iloc[0]['ticker']} ({trending_stocks.iloc[0]['total_mentions']} mentions)")
+        if len(trending_stocks) > 0:
+            logger.info(f"   • Most mentioned: {trending_stocks.iloc[0]['ticker']} ({trending_stocks.iloc[0]['total_mentions']} mentions)")
+    else:
+        logger.warning("⚠️ No trending stocks collected")
+
 
     # ========== COLLECT ALL NEWS ARTICLES ==========
     logger.info("📰 Collecting all news articles from category endpoint...")
@@ -42,11 +50,15 @@ def collect_all_data():
         section="alltickers"
     )
 
+
     if not all_news_articles.empty:
         all_news_file = processor.save_data(all_news_articles, "all_news_articles")
         logger.info(f"📁 Saved all news articles: {all_news_file} ({len(all_news_articles)} articles)")
         logger.info(f"   • Unique sources: {all_news_articles['source_name'].nunique()}")
         logger.info(f"   • Date range: {all_news_articles['date'].min()} to {all_news_articles['date'].max()}")
+    else:
+        logger.warning("⚠️ No all news articles collected")
+
 
     # ========== COLLECT NEWS FOR CORRELATION ANALYSIS ==========
     logger.info("📰 Collecting news for correlation (MINIMUM 1 year AND 50 articles per ticker)...")
@@ -76,6 +88,7 @@ def collect_all_data():
         min_days_back=365
     )
     logger.info(f"✅ Ticker news collected: {len(ticker_news)} articles")
+
 
     # ========== DETERMINE PER-TICKER DATE RANGES FROM NEWS ==========
     ticker_date_ranges = {}
@@ -142,9 +155,11 @@ def collect_all_data():
             }
             logger.warning(f"⚠️ {ticker}: No news found, using 1-year default range")
 
+
     # ========== COLLECT STOCK DATA MATCHING NEWS DATE RANGES ==========
     logger.info(f"📊 Collecting stock data aligned with news date ranges...")
     all_stock_data = []
+
 
     for ticker in tickers + etf_tickers:
         date_range = ticker_date_ranges[ticker]
@@ -154,7 +169,6 @@ def collect_all_data():
         for attempt in range(max_retries):
             try:
                 if attempt > 0:
-                    import time
                     wait_time = 2 ** attempt  # 2s, 4s, 8s
                     logger.info(f"⏳ Waiting {wait_time}s before retry {attempt + 1}")
                     time.sleep(wait_time)
@@ -193,6 +207,7 @@ def collect_all_data():
                 else:
                     logger.error(f"❌ Failed to fetch {ticker} after {max_retries} attempts: {e}")
 
+
     # Combine all stock data
     if all_stock_data:
         stock_data = pd.concat(all_stock_data, ignore_index=True)
@@ -202,96 +217,136 @@ def collect_all_data():
         stock_data = pd.DataFrame()
         logger.warning("⚠️ No stock data collected")
 
+
     # ========== REDDIT DATA ==========
     logger.info("📱 Collecting Reddit data...")
-    reddit_posts = reddit_collector.collect_posts_last_month()
-    logger.info(f"✅ Reddit posts collected: {len(reddit_posts)} posts")
     
-    ticker_mentions = reddit_collector.search_tickers_last_month(tickers)
-    logger.info(f"✅ Ticker mentions collected: {len(ticker_mentions)} mentions")
+    try:
+        reddit_posts = reddit_collector.collect_posts_last_month()
+        logger.info(f"✅ Reddit posts collected: {len(reddit_posts)} posts")
+    except Exception as e:
+        logger.error(f"❌ Error collecting Reddit posts: {e}")
+        reddit_posts = pd.DataFrame()
     
-    broad_market_reddit_posts = reddit_collector.collect_broad_market_posts_last_month()
-    logger.info(f"✅ Broad market Reddit posts collected: {len(broad_market_reddit_posts)} posts")
+    try:
+        ticker_mentions = reddit_collector.search_tickers_last_month(tickers)
+        logger.info(f"✅ Ticker mentions collected: {len(ticker_mentions)} mentions")
+    except Exception as e:
+        logger.error(f"❌ Error collecting ticker mentions: {e}")
+        ticker_mentions = pd.DataFrame()
+    
+    try:
+        broad_market_reddit_posts = reddit_collector.collect_broad_market_posts_last_month()
+        logger.info(f"✅ Broad market Reddit posts collected: {len(broad_market_reddit_posts)} posts")
+    except Exception as e:
+        logger.error(f"❌ Error collecting broad market Reddit posts: {e}")
+        broad_market_reddit_posts = pd.DataFrame()
+
 
     # ========== COMBINE FINANCIAL NEWS ==========
-    financial_news = pd.concat([etf_news, broad_market_news], ignore_index=True)
+    logger.info("🔗 Combining financial news sources...")
+    financial_news_dfs = [df for df in [etf_news, broad_market_news] if not df.empty]
+    financial_news = pd.concat(financial_news_dfs, ignore_index=True) if financial_news_dfs else pd.DataFrame()
     logger.info(f"📊 Total financial news (ETF + broad market): {len(financial_news)} articles")
+
 
     # ========== SAVE DATA ==========
     logger.info("💾 Saving collected data...")
 
+
     # Save stock data
     if not stock_data.empty:
-        stock_file = processor.save_data(stock_data, "stock_data")
-        logger.info(f"📁 Saved stock data: {stock_file} ({len(stock_data)} rows)")
+        processor.save_data(stock_data, "stock_data")
+        logger.info(f"📁 Saved: stock_data.csv ({len(stock_data)} rows)")
     else:
         logger.warning("⚠️ No stock data to save")
 
+
     # Save Reddit data
     if not reddit_posts.empty:
-        reddit_file = processor.save_data(reddit_posts, "reddit_posts")
-        logger.info(f"📁 Saved Reddit posts: {reddit_file} ({len(reddit_posts)} rows)")
+        processor.save_data(reddit_posts, "reddit_posts")
+        logger.info(f"📁 Saved: reddit_posts.csv ({len(reddit_posts)} rows)")
+    else:
+        logger.warning("⚠️ No reddit posts to save")
 
     if not ticker_mentions.empty:
-        mentions_file = processor.save_data(ticker_mentions, "ticker_mentions")
-        logger.info(f"📁 Saved ticker mentions: {mentions_file} ({len(ticker_mentions)} rows)")
+        processor.save_data(ticker_mentions, "ticker_mentions")
+        logger.info(f"📁 Saved: ticker_mentions.csv ({len(ticker_mentions)} rows)")
+    else:
+        logger.warning("⚠️ No ticker mentions to save")
     
     if not broad_market_reddit_posts.empty:
-        broad_reddit_file = processor.save_data(broad_market_reddit_posts, "broad_market_reddit_posts")
-        logger.info(f"📁 Saved broad market Reddit posts: {broad_reddit_file} ({len(broad_market_reddit_posts)} rows)")
+        processor.save_data(broad_market_reddit_posts, "broad_market_reddit_posts")
+        logger.info(f"📁 Saved: broad_market_reddit_posts.csv ({len(broad_market_reddit_posts)} rows)")
+    else:
+        logger.warning("⚠️ No broad market Reddit posts to save")
+
 
     # Save financial news
     if not financial_news.empty:
-        financial_news_deduped = financial_news.drop_duplicates(subset=['url'], keep='first')
-        logger.info(f"🔄 Removed {len(financial_news) - len(financial_news_deduped)} duplicate financial news articles")
+        financial_news_deduped = processor.clean_data(financial_news)
+        logger.info(f"🔄 Deduped financial news: {len(financial_news_deduped)} articles")
         
-        news_file = processor.save_data(financial_news_deduped, "financial_news")
-        logger.info(f"📁 Saved financial news: {news_file} ({len(financial_news_deduped)} rows)")
+        processor.save_data(financial_news_deduped, "financial_news")
+        logger.info(f"📁 Saved: financial_news.csv ({len(financial_news_deduped)} rows)")
     else:
-        logger.warning("⚠️ No financial news collected")
+        logger.warning("⚠️ No financial news to save")
+
 
     # Save ticker news
     if not ticker_news.empty:
-        ticker_news_deduped = ticker_news.drop_duplicates(subset=['url'], keep='first')
-        logger.info(f"🔄 Removed {len(ticker_news) - len(ticker_news_deduped)} duplicate ticker news articles")
+        ticker_news_deduped = processor.clean_data(ticker_news)
+        logger.info(f"🔄 Deduped ticker news: {len(ticker_news_deduped)} articles")
         
-        ticker_news_file = processor.save_data(ticker_news_deduped, "ticker_news")
-        logger.info(f"📁 Saved ticker news: {ticker_news_file} ({len(ticker_news_deduped)} rows)")
+        processor.save_data(ticker_news_deduped, "ticker_news")
+        logger.info(f"📁 Saved: ticker_news.csv ({len(ticker_news_deduped)} rows)")
     else:
-        logger.warning("⚠️ No ticker-specific news collected")
+        logger.warning("⚠️ No ticker-specific news to save")
 
-    # Combine for sentiment analysis
-    logger.info("🔗 Combining data sources...")
+
+    # ========== COMBINE TEXT DATA FOR SENTIMENT ANALYSIS ==========
+    logger.info("🔗 Combining data sources for sentiment analysis...")
     
     # Combine all Reddit data
     reddit_dataframes = [df for df in [reddit_posts, ticker_mentions, broad_market_reddit_posts] if not df.empty]
     combined_reddit = pd.concat(reddit_dataframes, ignore_index=True) if reddit_dataframes else pd.DataFrame()
-    logger.info(f"📊 Combined Reddit data: {len(combined_reddit)} total entries")
+    
+    if not combined_reddit.empty:
+        logger.info(f"📊 Combined Reddit data: {len(combined_reddit)} total entries")
+    else:
+        logger.warning("⚠️ No Reddit data to combine")
+
 
     # Combine all news data
     news_dataframes = [df for df in [financial_news, ticker_news] if not df.empty]
     combined_news = pd.concat(news_dataframes, ignore_index=True) if news_dataframes else pd.DataFrame()
-    logger.info(f"📊 Combined news data: {len(combined_news)} total articles")
+    
+    if not combined_news.empty:
+        logger.info(f"📊 Combined news data: {len(combined_news)} total articles")
+    else:
+        logger.warning("⚠️ No news data to combine")
+
 
     # Combine text data and add categories
     if not combined_reddit.empty or not combined_news.empty:
         text_data = processor.combine_text_data(combined_reddit, combined_news)
         
         if not text_data.empty:
+            # Clean duplicates
+            text_data = processor.clean_data(text_data)
+            logger.info(f"🧹 Cleaned text data: {len(text_data)} entries")
+            
             # Add category column
             if 'ticker' in text_data.columns:
                 text_data['category'] = text_data['ticker'].apply(
                     lambda x: Config.get_sector(x) if pd.notna(x) else 'General'
                 )
-            elif 'tickers' in text_data.columns:
-                text_data['category'] = text_data['tickers'].apply(
-                    lambda x: Config.get_sector(x[0]) if isinstance(x, list) and len(x) > 0 else 'General'
-                )
             else:
                 text_data['category'] = 'General'
             
-            text_file = processor.save_data(text_data, "combined_text_data")
-            logger.info(f"📁 Saved combined text data: {text_file} ({len(text_data)} rows)")
+            # Save combined text data
+            processor.save_data(text_data, "combined_text_data")
+            logger.info(f"📁 Saved: combined_text_data.csv ({len(text_data)} rows)")
             
             # Log final category distribution
             if 'category' in text_data.columns:
@@ -299,31 +354,41 @@ def collect_all_data():
                 for category, count in text_data['category'].value_counts().items():
                     logger.info(f"  • {category}: {count} entries")
         else:
-            logger.warning("⚠️ Combined text data is empty")
+            logger.warning("⚠️ Combined text data is empty after processing")
     else:
         logger.warning("⚠️ No text data to combine")
 
+
     # ========== FINAL SUMMARY ==========
     logger.info("✅ Data collection completed!")
-    logger.info("="*60)
+    logger.info("="*70)
     logger.info("📊 COLLECTION SUMMARY (MINIMUM 1 Year + 50 Articles per Ticker):")
+    logger.info("="*70)
     
     if not trending_stocks.empty:
         logger.info(f"  • Trending stocks: {len(trending_stocks)} stocks")
     
     if not all_news_articles.empty:
-        logger.info(f"  • All news articles: {len(all_news_articles)} articles")
+        logger.info(f"  • All news articles collected: {len(all_news_articles)} articles")
     
-    for ticker in tickers + etf_tickers:
+    logger.info(f"\n  📰 NEWS COLLECTION:")
+    for ticker in sorted(tickers + etf_tickers):
         if ticker in ticker_date_ranges:
             dr = ticker_date_ranges[ticker]
             stock_count = len(stock_data[stock_data['ticker'] == ticker]) if not stock_data.empty else 0
+            status = "✅" if dr['count'] >= 50 else "⚠️"
             logger.info(
-                f"  • {ticker}: {dr['start']} to {dr['end']} ({dr['span_days']} days) | "
+                f"  {status} {ticker}: {dr['start']} to {dr['end']} ({dr['span_days']} days) | "
                 f"{dr['count']} news | {stock_count} price points"
             )
     
-    logger.info(f"\n  • Total stock data: {len(stock_data) if not stock_data.empty else 0} rows")
+    logger.info(f"\n  📊 DATA SUMMARY:")
+    logger.info(f"  • Total stock data: {len(stock_data) if not stock_data.empty else 0} rows")
     logger.info(f"  • Total news articles: {len(combined_news) if not combined_news.empty else 0}")
+    logger.info(f"  • Total Reddit entries: {len(combined_reddit) if not combined_reddit.empty else 0}")
     logger.info(f"  • Total text entries: {len(text_data) if 'text_data' in locals() and not text_data.empty else 0}")
-    logger.info("="*60)
+    logger.info("="*70)
+
+
+if __name__ == "__main__":
+    collect_all_data()

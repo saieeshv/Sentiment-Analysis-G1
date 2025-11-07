@@ -1,0 +1,179 @@
+ticker,title,publisher,link,providerPublishTime,type,collected_at,category
+AAPL,,,,,,2025-10-23 17:00:18.572255,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572263,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572277,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572278,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572280,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572281,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572282,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572284,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572285,Information Technology
+AAPL,,,,,,2025-10-23 17:00:18.572286,Information Technology
+JPM,,,,,,2025-10-23 17:00:18.694537,Financials
+JPM,,,,,,2025-10-23 17:00:18.694547,Financials
+JPM,,,,,,2025-10-23 17:00:18.694548,Financials
+JPM,,,,,,2025-10-23 17:00:18.694550,Financials
+JPM,,,,,,2025-10-23 17:00:18.694552,Financials
+JPM,,,,,,2025-10-23 17:00:18.694554,Financials
+JPM,,,,,,2025-10-23 17:00:18.694555,Financials
+JPM,,,,,,2025-10-23 17:00:18.694557,Financials
+JPM,,,,,,2025-10-23 17:00:18.694559,Financials
+JPM,,,,,,2025-10-23 17:00:18.694561,Financials
+UNH,,,,,,2025-10-23 17:00:18.817426,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817436,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817438,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817440,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817442,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817443,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817445,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817447,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817449,Healthcare
+UNH,,,,,,2025-10-23 17:00:18.817450,Healthcare
+AMZN,,,,,,2025-10-23 17:00:18.926646,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926656,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926658,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926660,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926662,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926664,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926666,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926667,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926669,Consumer Discretionary
+AMZN,,,,,,2025-10-23 17:00:18.926670,Consumer Discretionary
+WMT,,,,,,2025-10-23 17:00:19.040950,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040961,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040963,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040965,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040967,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040968,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040970,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040972,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040974,Consumer Staples
+WMT,,,,,,2025-10-23 17:00:19.040975,Consumer Staples
+T,,,,,,2025-10-23 17:00:19.216596,Communication Services
+T,,,,,,2025-10-23 17:00:19.216605,Communication Services
+T,,,,,,2025-10-23 17:00:19.216607,Communication Services
+T,,,,,,2025-10-23 17:00:19.216609,Communication Services
+T,,,,,,2025-10-23 17:00:19.216611,Communication Services
+T,,,,,,2025-10-23 17:00:19.216613,Communication Services
+T,,,,,,2025-10-23 17:00:19.216615,Communication Services
+T,,,,,,2025-10-23 17:00:19.216616,Communication Services
+T,,,,,,2025-10-23 17:00:19.216618,Communication Services
+T,,,,,,2025-10-23 17:00:19.216620,Communication Services
+BA,,,,,,2025-10-23 17:00:19.353768,Industrials
+BA,,,,,,2025-10-23 17:00:19.353786,Industrials
+BA,,,,,,2025-10-23 17:00:19.353788,Industrials
+BA,,,,,,2025-10-23 17:00:19.353790,Industrials
+BA,,,,,,2025-10-23 17:00:19.353791,Industrials
+BA,,,,,,2025-10-23 17:00:19.353794,Industrials
+BA,,,,,,2025-10-23 17:00:19.353795,Industrials
+BA,,,,,,2025-10-23 17:00:19.353797,Industrials
+BA,,,,,,2025-10-23 17:00:19.353799,Industrials
+BA,,,,,,2025-10-23 17:00:19.353801,Industrials
+XOM,,,,,,2025-10-23 17:00:19.496128,Energy
+XOM,,,,,,2025-10-23 17:00:19.496137,Energy
+XOM,,,,,,2025-10-23 17:00:19.496139,Energy
+XOM,,,,,,2025-10-23 17:00:19.496141,Energy
+XOM,,,,,,2025-10-23 17:00:19.496143,Energy
+XOM,,,,,,2025-10-23 17:00:19.496145,Energy
+XOM,,,,,,2025-10-23 17:00:19.496147,Energy
+XOM,,,,,,2025-10-23 17:00:19.496149,Energy
+XOM,,,,,,2025-10-23 17:00:19.496151,Energy
+XOM,,,,,,2025-10-23 17:00:19.496153,Energy
+LIN,,,,,,2025-10-23 17:00:19.615173,Materials
+LIN,,,,,,2025-10-23 17:00:19.615183,Materials
+LIN,,,,,,2025-10-23 17:00:19.615186,Materials
+LIN,,,,,,2025-10-23 17:00:19.615188,Materials
+LIN,,,,,,2025-10-23 17:00:19.615190,Materials
+LIN,,,,,,2025-10-23 17:00:19.615192,Materials
+LIN,,,,,,2025-10-23 17:00:19.615194,Materials
+LIN,,,,,,2025-10-23 17:00:19.615197,Materials
+LIN,,,,,,2025-10-23 17:00:19.615199,Materials
+LIN,,,,,,2025-10-23 17:00:19.615201,Materials
+NEE,,,,,,2025-10-23 17:00:19.724869,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724880,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724882,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724885,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724886,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724888,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724890,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724892,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724893,Utilities
+NEE,,,,,,2025-10-23 17:00:19.724895,Utilities
+PLD,,,,,,2025-10-23 17:00:19.850460,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850470,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850472,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850474,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850475,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850477,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850479,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850480,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850482,Real Estate
+PLD,,,,,,2025-10-23 17:00:19.850485,Real Estate
+VTI,,,,,,2025-10-23 17:00:19.962632,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962649,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962652,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962654,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962656,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962658,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962660,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962661,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962663,Broad Market ETF
+VTI,,,,,,2025-10-23 17:00:19.962665,Broad Market ETF
+SCHB,,,,,,2025-10-23 17:00:20.049920,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234957,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234967,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234969,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234971,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234972,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234975,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234976,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234978,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234982,Broad Market ETF
+SPY,,,,,,2025-10-23 17:00:20.234983,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352899,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352909,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352910,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352912,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352914,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352916,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352917,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352919,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352923,Broad Market ETF
+VOO,,,,,,2025-10-23 17:00:20.352925,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455491,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455498,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455500,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455501,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455502,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455503,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455504,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455505,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455506,Broad Market ETF
+IVV,,,,,,2025-10-23 17:00:20.455507,Broad Market ETF
+QQQ,,,,,,2025-10-23 17:00:20.561372,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561379,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561380,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561381,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561382,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561383,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561384,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561385,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561385,Technology ETF
+QQQ,,,,,,2025-10-23 17:00:20.561386,Technology ETF
+IWM,,,,,,2025-10-23 17:00:20.669153,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669162,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669164,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669166,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669168,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669170,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669171,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669173,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669175,Small Cap ETF
+IWM,,,,,,2025-10-23 17:00:20.669177,Small Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756445,Mid Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756458,Mid Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756463,Mid Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756466,Mid Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756468,Mid Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756470,Mid Cap ETF
+IJH,,,,,,2025-10-23 17:00:20.756472,Mid Cap ETF
