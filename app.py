@@ -23,6 +23,7 @@ def render_tab_content(tab):
     elif tab == 'tab-security':
         return get_security_layout()
 
+# Register callbacks from both dashboards
 register_thematic_callbacks(app)
 register_security_callbacks(app)
 

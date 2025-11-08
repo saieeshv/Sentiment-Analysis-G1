@@ -11,17 +11,28 @@ logger = logging.getLogger(__name__)
 
 def collect_all_data():
     """Main data collection function with 1-year/50-article minimum correlation focus"""
-    logger.info("🚀 Starting data collection...")
+    # logger.info("🚀 Starting data collection...")
     
+    # days_back = Config.DEFAULT_NEWS_DAYS_BACK
+    # tickers = Config.DEFAULT_TICKERS
+    # etf_tickers = Config.BROAD_MARKET_ETFS 
+    # processor = DataProcessor()
+
+    logger.info("🚀 Starting data collection...")
     days_back = Config.DEFAULT_NEWS_DAYS_BACK
     tickers = Config.DEFAULT_TICKERS
-    etf_tickers = Config.BROAD_MARKET_ETFS 
-    processor = DataProcessor()
+    etf_tickers = Config.BROAD_MARKET_ETFS
 
+    # -- Update Here: Save to Google Drive shortcut folder --
+    processor = DataProcessor(
+        data_dir='/content/drive/MyDrive/Outputs/Data',
+        archive_dir='/content/drive/MyDrive/Outputs/Data_Archive'
+    )
 
     # Initialize collectors
     stock_news_collector = NewsCollector(source="stocknewsapi")
     reddit_collector = RedditCollector()
+    
 
 
     # ========== COLLECT TRENDING STOCKS ==========
