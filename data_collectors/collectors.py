@@ -10,23 +10,18 @@ from utils.data_processor import DataProcessor
 logger = logging.getLogger(__name__)
 
 def collect_all_data():
-    """Main data collection function with 1-year/50-article minimum correlation focus"""
-    # logger.info("🚀 Starting data collection...")
-    
-    # days_back = Config.DEFAULT_NEWS_DAYS_BACK
-    # tickers = Config.DEFAULT_TICKERS
-    # etf_tickers = Config.BROAD_MARKET_ETFS 
-    # processor = DataProcessor()
-
-    logger.info("🚀 Starting data collection...")
+    logger.info('🚀 Starting data collection...')
     days_back = Config.DEFAULT_NEWS_DAYS_BACK
     tickers = Config.DEFAULT_TICKERS
     etf_tickers = Config.BROAD_MARKET_ETFS
 
-    # -- Update Here: Save to Google Drive shortcut folder --
+    # Dynamically set archive directory name with today's date
+    today_str = datetime.now().strftime('%Y%m%d')
+    archive_dir = f'/content/drive/MyDrive/archive{today_str}_archive/raw_data'
+
     processor = DataProcessor(
-        data_dir='/content/drive/MyDrive/Outputs/Data',
-        archive_dir='/content/drive/MyDrive/Outputs/Data_Archive'
+        data_dir='/content/drive/MyDrive/Outputs',
+        archive_dir=archive_dir
     )
 
     # Initialize collectors
