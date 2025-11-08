@@ -359,7 +359,7 @@ from datetime import datetime
 import logging
 
 class DataProcessor:
-    def __init__(self, data_dir='/content/drive/MyDrive/Outputs', archive_dir=None):
+    def __init__(self, data_dir='/content/drive/MyDrive/IS484_FYP/Google_Colab/Raw_Data', archive_dir=None):
         """
         Initialize DataProcessor
         Args:
@@ -371,7 +371,7 @@ class DataProcessor:
         # Generate archive_dir using today's date if not provided
         if archive_dir is None:
             date_str = datetime.now().strftime('%Y%m%d')
-            archive_dir = f'/content/drive/MyDrive/archive{date_str}_archive/raw_data'
+            archive_dir = f'/content/drive/MyDrive/IS484_FYP/Google_Colab/Archive/{date_str}_archive/raw_data'
         self.archive_dir = archive_dir
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.archive_dir, exist_ok=True)
