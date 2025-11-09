@@ -17,7 +17,7 @@ def collect_all_data():
 
     # Dynamically set archive directory name with today's date
     today_str = datetime.now().strftime('%Y%m%d')
-    archive_dir = f'/content/drive/MyDrive/IS484/Google_Colab/Archive/{today_str}_archive/raw_data'
+    archive_dir = f'/content/drive/MyDrive/IS484_FYP/Google_Colab/Archive/{today_str}_archive/raw_data'
 
     processor = DataProcessor(
         data_dir='/content/drive/MyDrive/IS484_FYP/Google_Colab/Raw_Data',
