@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -991,7 +990,7 @@ app.layout = dbc.Container([
 @callback(
     [Output('warning-alert', 'children'),
      Output('warning-table', 'children')],
-    Input('warning-alert', 'id')  # Dummy input to trigger on load
+    Input('warning-alert', 'id')
 )
 def update_warnings(_):
     ticker_volume = combined_news.groupby('ticker').size().reset_index(name='article_count')
@@ -1000,7 +999,7 @@ def update_warnings(_):
         lambda x: f"⚠️ Only {x} articles" if x < MIN_ARTICLE_THRESHOLD else ""
     )
     insufficient_tickers = ticker_volume[~ticker_volume['sufficient_data']]
-    
+
     warning_count = len(insufficient_tickers)
     if warning_count > 0:
         warning_alert = dbc.Alert([
@@ -1012,7 +1011,7 @@ def update_warnings(_):
             html.H5("✅ All Tickers Have Sufficient Data", className="mb-2"),
             html.P(f"All tickers have at least {MIN_ARTICLE_THRESHOLD} articles. Sentiment analysis is reliable.")
         ], color="success", className="mb-4")
-    
+
     if warning_count > 0:
         warning_table = dash_table.DataTable(
             data=insufficient_tickers.to_dict('records'),
@@ -1026,18 +1025,12 @@ def update_warnings(_):
         )
     else:
         warning_table = html.P("No warnings - all tickers have sufficient data coverage.", className="text-success")
-    
+
     return warning_alert, warning_table
-
-
 
 @callback(Output("download-full-report", "data"), Input("btn-download-full-report", "n_clicks"), prevent_initial_call=True)
 def download_full_report_callback(n_clicks):
     return dict(content=generate_full_report(), filename="market_sentiment_full_report.txt")
 
-
-
 if __name__ == '__main__':
-    # When running standalone, register callbacks with the local app instance
-    register_thematic_callbacks(app)
     app.run(debug=True, port=8050)
