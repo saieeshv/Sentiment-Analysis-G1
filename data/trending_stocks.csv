@@ -1,21 +1,21 @@
 ticker,name,total_mentions,positive_mentions,negative_mentions,neutral_mentions,sentiment_score,category,collected_at,date_range
-NVDA,NVIDIA Corporation,167,101,39,27,0.557,Technology,2025-11-08 00:58:01.099323,last7days
-TSLA,"Tesla, Inc.",165,73,43,49,0.273,Consumer Cyclical,2025-11-08 00:58:01.202657,last7days
-PLTR,Palantir Technologies Inc.,162,68,37,57,0.287,Technology,2025-11-08 00:58:01.287658,last7days
-AMZN,"Amazon.com, Inc.",152,114,23,15,0.898,Consumer Cyclical,2025-11-08 00:58:01.387708,last7days
-GOOGL,Alphabet Inc.,100,80,9,11,1.065,Communication Services,2025-11-08 00:58:01.477686,last7days
-GLD,SPDR Gold Shares,94,40,15,39,0.399,Other,2025-11-08 00:58:01.559236,last7days
-GLDM,SPDR Gold MiniShares,93,39,15,39,0.387,Other,2025-11-08 00:58:01.645269,last7days
-IAU,iShares Gold Trust,92,38,15,39,0.375,Other,2025-11-08 00:58:01.722899,last7days
-OUNZ,VanEck Merk Gold Trust,91,38,15,38,0.379,Other,2025-11-08 00:58:01.812965,last7days
-DGL,Invesco DB Gold,91,38,15,38,0.379,Other,2025-11-08 00:58:01.895356,last7days
-AAAU,Perth Mint Physical Gold ETF,91,38,15,38,0.379,Other,2025-11-08 00:58:01.991775,last7days
-UGL,ProShares Ultra Gold,90,38,15,37,0.383,Other,2025-11-08 00:58:02.077672,last7days
-AMD,"Advanced Micro Devices, Inc.",79,40,13,26,0.513,Technology,2025-11-08 00:58:02.168365,last7days
-MSFT,Microsoft Corporation,78,52,3,23,0.942,Technology,2025-11-08 00:58:02.274987,last7days
-NVO,Novo Nordisk A/S,78,38,20,20,0.346,Healthcare,2025-11-08 00:58:02.379424,last7days
-SGOL,ETFS Physical Swiss Gold,74,33,11,30,0.446,Other,2025-11-08 00:58:02.469366,last7days
-DBP,Invesco DB Precious Metals,74,33,11,30,0.446,Other,2025-11-08 00:58:02.567564,last7days
-BAR,GraniteShares Gold Trust,74,33,11,30,0.446,Other,2025-11-08 00:58:02.670300,last7days
-GUSH,Direxion Dly S&P Oil&Gs Ex&Prd Bl 3X ETF,67,16,29,22,-0.291,Other,2025-11-08 00:58:02.766405,last7days
-OIH,VanEck Vectors Oil Services ETF,66,15,29,22,-0.318,Other,2025-11-08 00:58:02.854826,last7days
+TSLA,"Tesla, Inc.",182,79,49,54,0.247,Consumer Cyclical,2025-11-09 12:01:48.773638,last7days
+NVDA,NVIDIA Corporation,180,102,44,34,0.483,Technology,2025-11-09 12:01:48.860488,last7days
+PLTR,Palantir Technologies Inc.,178,74,44,60,0.253,Technology,2025-11-09 12:01:48.959927,last7days
+AMZN,"Amazon.com, Inc.",154,111,24,19,0.847,Consumer Cyclical,2025-11-09 12:01:49.067363,last7days
+GOOGL,Alphabet Inc.,112,86,12,14,0.991,Communication Services,2025-11-09 12:01:49.160645,last7days
+GLD,SPDR Gold Shares,101,41,16,44,0.371,Other,2025-11-09 12:01:49.252663,last7days
+GLDM,SPDR Gold MiniShares,100,40,16,44,0.36,Other,2025-11-09 12:01:49.347238,last7days
+IAU,iShares Gold Trust,99,39,16,44,0.348,Other,2025-11-09 12:01:49.437367,last7days
+OUNZ,VanEck Merk Gold Trust,98,39,16,43,0.352,Other,2025-11-09 12:01:49.513464,last7days
+DGL,Invesco DB Gold,98,39,16,43,0.352,Other,2025-11-09 12:01:49.590439,last7days
+AAAU,Perth Mint Physical Gold ETF,98,39,16,43,0.352,Other,2025-11-09 12:01:49.674345,last7days
+UGL,ProShares Ultra Gold,97,39,16,42,0.356,Other,2025-11-09 12:01:49.753528,last7days
+AMD,"Advanced Micro Devices, Inc.",84,40,18,26,0.393,Technology,2025-11-09 12:01:49.830352,last7days
+NVO,Novo Nordisk A/S,81,40,20,21,0.37,Healthcare,2025-11-09 12:01:49.925403,last7days
+SGOL,ETFS Physical Swiss Gold,80,34,11,35,0.431,Other,2025-11-09 12:01:50.013785,last7days
+DBP,Invesco DB Precious Metals,80,34,11,35,0.431,Other,2025-11-09 12:01:50.097373,last7days
+BAR,GraniteShares Gold Trust,80,34,11,35,0.431,Other,2025-11-09 12:01:50.180403,last7days
+MSFT,Microsoft Corporation,79,50,4,25,0.873,Technology,2025-11-09 12:01:50.263523,last7days
+META,"Meta Platforms, Inc.",70,28,19,23,0.193,Communication Services,2025-11-09 12:01:50.349608,last7days
+GUSH,Direxion Dly S&P Oil&Gs Ex&Prd Bl 3X ETF,67,16,28,23,-0.269,Other,2025-11-09 12:01:50.443599,last7days
