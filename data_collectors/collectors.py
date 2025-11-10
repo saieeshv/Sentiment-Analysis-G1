@@ -10,18 +10,24 @@ from utils.data_processor import DataProcessor
 logger = logging.getLogger(__name__)
 
 def collect_all_data():
-    """Main data collection function with 1-year/50-article minimum correlation focus"""
-    logger.info("🚀 Starting data collection...")
-    
+    logger.info('🚀 Starting data collection...')
     days_back = Config.DEFAULT_NEWS_DAYS_BACK
     tickers = Config.DEFAULT_TICKERS
-    etf_tickers = Config.BROAD_MARKET_ETFS 
-    processor = DataProcessor()
+    etf_tickers = Config.BROAD_MARKET_ETFS
 
+    # Dynamically set archive directory name with today's date
+    today_str = datetime.now().strftime('%Y%m%d')
+    archive_dir = f'/content/drive/MyDrive/IS484_FYP/Google_Colab/Archive/{today_str}_archive/raw_data'
+
+    processor = DataProcessor(
+        data_dir='/content/drive/MyDrive/IS484_FYP/Google_Colab/Raw_Data',
+        archive_dir=archive_dir
+    )
 
     # Initialize collectors
     stock_news_collector = NewsCollector(source="stocknewsapi")
     reddit_collector = RedditCollector()
+    
 
 
     # ========== COLLECT TRENDING STOCKS ==========
