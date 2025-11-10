@@ -14,10 +14,15 @@ import base64
 # DATA LOADING & PREPROCESSING
 # ============================================================================
 
-df = pd.read_csv('broad_market_topic_modeling_20251102_084257.csv', sep=',')
-corr_summary = pd.read_csv('broad_market_correlation_summary_20251102_081024.csv')
-corr_detailed = pd.read_csv('broad_market_correlation_detailed_20251102_081024.csv')
-combined_news = pd.read_csv('combined_news_reddit_20251101.csv')
+# df = pd.read_csv('broad_market_topic_modeling_20251102_084257.csv', sep=',')
+# corr_summary = pd.read_csv('broad_market_correlation_summary_20251102_081024.csv')
+# corr_detailed = pd.read_csv('broad_market_correlation_detailed_20251102_081024.csv')
+# combined_news = pd.read_csv('combined_news_reddit_20251101.csv')
+
+df = pd.read_csv('/content/drive/MyDrive/IS484_FYP/Google_Colab/broad_market_topic_modeling.csv', sep=',')
+corr_summary = pd.read_csv('/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/broad_market_correlation_summary.csv')
+corr_detailed = pd.read_csv('/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/broad_market_correlation_detailed.csv')
+combined_news = pd.read_csv('/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/LLM_Outputs/combined_news_reddit.csv')
 
 df = df[~df['topics'].str.contains('paywall|paylimitwall', case=False, na=False)]
 df['date'] = pd.to_datetime(df['date'], errors='coerce')

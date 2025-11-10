@@ -4,9 +4,14 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, dash_table, Input, Output
 
 # Load Data
-summary_df = pd.read_csv("security_correlation_summary_20251031_234833.csv")
-detailed_df = pd.read_csv("security_correlation_detailed_20251031_234833.csv")
-trending_df = pd.read_csv("trending_stocks_20251101_140418.csv")
+# summary_df = pd.read_csv("security_correlation_summary_20251031_234833.csv")
+# detailed_df = pd.read_csv("security_correlation_detailed_20251031_234833.csv")
+# trending_df = pd.read_csv("trending_stocks_20251101_140418.csv")
+
+# Load Data
+summary_df = pd.read_csv("/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/security_correlation_summary.csv")
+detailed_df = pd.read_csv("/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/security_correlation_detailed.csv")
+trending_df = pd.read_csv("/content/drive/MyDrive/IS484_FYP/Google_Colab/Raw_Data/trending_stocks.csv")
 
 # Prepare Sentiment Score Statistics
 sentiment_stats_df = detailed_df.groupby('ticker').agg(
