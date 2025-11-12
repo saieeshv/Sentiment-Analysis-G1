@@ -94,6 +94,7 @@ else:
 max_data_date = df['date'].max()
 cutoff_7d = max_data_date - pd.Timedelta(days=7)
 last_7d_df = df[df['date'] >= cutoff_7d].copy()
+actual_days_count = len(last_7d_df['date_only'].dropna().unique()) if len(last_7d_df) > 0 else 7
 
 topic_col = 'topic_theme' if 'topic_theme' in last_7d_df.columns else 'topics'
 
@@ -500,13 +501,16 @@ def generate_figures(filtered_news, filtered_df):
 
     # 12. TOP TOPICS
     if len(top_topics_df) > 0:
+        # Calculate the actual number of days
+        num_days = len(filtered_df_7d['date_only'].dropna().unique())
+        
         fig_top_topics = px.bar(
             top_topics_df,
             y=topic_col,
             x='count',
             color='sentiment',
             orientation='h',
-            title=f"Top Topics by Sentiment - Last 7 Days<br><sub>{date_range_7d}</sub>",
+            title=f"Top Topics by Sentiment - Last {num_days} Day{'s' if num_days != 1 else ''}<br><sub>{date_range_7d}</sub>",
             barmode='stack',
             height=500,
             color_discrete_map={
@@ -517,9 +521,12 @@ def generate_figures(filtered_news, filtered_df):
         )
         fig_top_topics.update_layout(yaxis={'categoryorder':'total ascending'}, template='plotly_dark')
     else:
+        # Calculate the actual number of days
+        num_days = len(filtered_df_7d['date_only'].dropna().unique()) if 'date_only' in filtered_df_7d.columns and len(filtered_df_7d) > 0 else 7
+        
         fig_top_topics = go.Figure()
         fig_top_topics.update_layout(
-            title=f"Top Topics by Sentiment - Last 7 Days<br><sub>{date_range_7d}</sub>",
+            title=f"Top Topics by Sentiment - Last {num_days} Day{'s' if num_days != 1 else ''}<br><sub>{date_range_7d}</sub>",
             template='plotly_dark',
             annotations=[{
                 'text': 'No topic data available for the selected period',
@@ -531,6 +538,7 @@ def generate_figures(filtered_news, filtered_df):
                 'font': {'size': 16, 'color': '#888888'}
             }]
         )
+
 
     # 13. CATEGORY BREAKDOWN
     fig_breakdown = px.bar(
@@ -897,11 +905,14 @@ def get_thematic_layout():
         dbc.Row([dbc.Col([
             html.H3("📋 Detailed Analysis", className="mb-3", style={'fontWeight': 'bold'}),
             dbc.Accordion([
-                dbc.AccordionItem([dcc.Graph(id='fig-top-topics', figure=initial_figs['fig_top_topics'])], title="🏷️ Top Topics (Last 7 Days)"),
+            dbc.AccordionItem([dcc.Graph(id='fig-top-topics', figure=initial_figs['fig_top_topics'])], 
+                            title=f"🏷️ Top Topics (Last {actual_days_count} Day{'s' if actual_days_count != 1 else ''})"),
+            dbc.AccordionItem([dcc.Graph(id='fig-hourly', figure=initial_figs['fig_hourly'])], 
+                            title="⏰ Hourly Sentiment Patterns"),
+            dbc.AccordionItem([dcc.Graph(id='fig-gain-loss', figure=initial_figs['fig_gain_loss'])], 
+                            title="📊 Max Daily Movements"),
+        ], always_open=True)
 
-                dbc.AccordionItem([dcc.Graph(id='fig-hourly', figure=initial_figs['fig_hourly'])], title="⏰ Hourly Sentiment Patterns"),
-                dbc.AccordionItem([dcc.Graph(id='fig-gain-loss', figure=initial_figs['fig_gain_loss'])], title="📊 Max Daily Movements"),
-            ], always_open=True)
         ])]),
 
         html.Hr(),
