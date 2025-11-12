@@ -31,4 +31,4 @@ register_thematic_callbacks(app)
 register_security_callbacks(app)
 
 if __name__ == "__main__":
-    app.run(mode='inline', port=8052, debug=False)
+    app.run(host='0.0.0.0', port=8052, debug=False)
