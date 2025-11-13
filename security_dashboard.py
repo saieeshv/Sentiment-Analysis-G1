@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.express as px
 import dash_bootstrap_components as dbc
 from dash import html, dcc, dash_table, Input, Output
+import re
 
 # Load Data
 # summary_df = pd.read_csv("security_correlation_summary_20251031_234833.csv")
@@ -12,6 +13,10 @@ from dash import html, dcc, dash_table, Input, Output
 summary_df = pd.read_csv("/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/security_correlation_summary.csv")
 detailed_df = pd.read_csv("/content/drive/MyDrive/IS484_FYP/Google_Colab/Outputs/security_correlation_detailed.csv")
 trending_df = pd.read_csv("/content/drive/MyDrive/IS484_FYP/Google_Colab/Raw_Data/trending_stocks.csv")
+
+# Convert date columns to datetime
+summary_df['date_range_start'] = pd.to_datetime(summary_df['date_range_start'])
+summary_df['date_range_end'] = pd.to_datetime(summary_df['date_range_end'])
 
 # Prepare Sentiment Score Statistics
 sentiment_stats_df = detailed_df.groupby('ticker').agg(
@@ -30,16 +35,53 @@ perf_summary_df = summary_df[
      'same_day_corr', '1_day_ahead_corr', '1_day_ahead_significant']
 ]
 
+# ============================================================================
+# HELPER FUNCTIONS TO FORMAT DATE RANGES
+# ============================================================================
+def format_date_range_from_summary(summary_df):
+    """
+    Formats date range for chart titles using min/max from date_range_start and date_range_end
+    Returns string like "Sep 09, 2025 - Oct 30, 2025"
+    """
+    if len(summary_df) == 0:
+        return "No Data"
+    
+    min_date = summary_df['date_range_start'].min()
+    max_date = summary_df['date_range_end'].max()
+    
+    return f"{min_date.strftime('%b %d, %Y')} - {max_date.strftime('%b %d, %Y')}"
+
+
+def format_trending_date_range(trending_df):
+    """
+    Formats the date range for trending stocks chart
+    Returns formatted string like "Last 7 Days"
+    """
+    if len(trending_df) == 0 or 'date_range' not in trending_df.columns:
+        return "No Data"
+    
+    date_range_value = trending_df['date_range'].iloc[0]
+    
+    import re
+    match = re.search(r'last(\d+)days', date_range_value.lower())
+    if match:
+        num_days = match.group(1)
+        return f"Last {num_days} Days"
+    else:
+        return date_range_value.replace('_', ' ').title()
+
+
+
 def get_security_layout():
     return dbc.Container([
         # HEADER SECTION WITH ICON
         dbc.Row([
             dbc.Col([
                 html.Div([
-                    html.I(className="bi bi-graph-up-arrow me-3", 
-                          style={"fontSize": "48px", "color": "#22c55e"}),
-                    html.Span("Securities Sentiment & Performance Dashboard", 
-                             style={"fontSize": "36px", "fontWeight": "bold", "verticalAlign": "middle"})
+                    html.I(className="bi bi-graph-up-arrow me-3",
+                           style={"fontSize": "48px", "color": "#22c55e"}),
+                    html.Span("Securities Sentiment & Performance Dashboard",
+                              style={"fontSize": "36px", "fontWeight": "bold", "verticalAlign": "middle"})
                 ], style={
                     "backgroundColor": "#2a2a2a",
                     "padding": "25px",
@@ -62,22 +104,22 @@ def get_security_layout():
         
         # SECTION 1: Trending Stocks (Always visible)
         dbc.Row([
-            dbc.Col(html.H4("🔥 Trending Stocks: Buzz vs Sentiment", 
-                    className="mb-3", style={"fontSize": "28px", "fontWeight": "600"}), width=12)
+            dbc.Col(html.H4("🔥 Trending Stocks: Buzz vs Sentiment",
+                            className="mb-3", style={"fontSize": "28px", "fontWeight": "600"}), width=12)
         ]),
         dbc.Row([dbc.Col(dcc.Graph(id="trending-stocks-bubble"), width=12)], className="mb-5"),
         
         # SECTION 2: Sentiment vs Price Performance (Always visible)
         dbc.Row([
-            dbc.Col(html.H4("📊 Sentiment vs Price Performance", 
-                    className="mb-3", style={"fontSize": "28px", "fontWeight": "600"}), width=12)
+            dbc.Col(html.H4("📊 Sentiment vs Price Performance",
+                            className="mb-3", style={"fontSize": "28px", "fontWeight": "600"}), width=12)
         ]),
         dbc.Row([dbc.Col(dcc.Graph(id="security-bubble-sentiment-price"), width=12)], className="mb-5"),
         
         # SECTION 3: Risk vs Reward (Always visible)
         dbc.Row([
-            dbc.Col(html.H4("⚖️ Risk vs Reward Analysis", 
-                    className="mb-3", style={"fontSize": "28px", "fontWeight": "600"}), width=12)
+            dbc.Col(html.H4("⚖️ Risk vs Reward Analysis",
+                            className="mb-3", style={"fontSize": "28px", "fontWeight": "600"}), width=12)
         ]),
         dbc.Row([dbc.Col(dcc.Graph(id="security-scatter-vol-return"), width=12)], className="mb-5"),
         
@@ -86,10 +128,10 @@ def get_security_layout():
             dbc.Col([
                 dbc.Button(
                     html.Div([
-                        html.Span("⏳ Correlation Analysis Over Time Horizons", 
-                                 style={"flex": "1", "textAlign": "left"}),
-                        html.I(id="correlation-arrow", className="bi bi-chevron-down", 
-                              style={"fontSize": "20px"})
+                        html.Span("⏳ Correlation Analysis Over Time Horizons",
+                                  style={"flex": "1", "textAlign": "left"}),
+                        html.I(id="correlation-arrow", className="bi bi-chevron-down",
+                               style={"fontSize": "20px"})
                     ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between"}),
                     id="collapse-correlation-button",
                     color="dark",
@@ -122,10 +164,10 @@ def get_security_layout():
             dbc.Col([
                 dbc.Button(
                     html.Div([
-                        html.Span("📰 News & Social Media Coverage by Security", 
-                                 style={"flex": "1", "textAlign": "left"}),
-                        html.I(id="news-arrow", className="bi bi-chevron-down", 
-                              style={"fontSize": "20px"})
+                        html.Span("📰 News & Social Media Coverage by Security",
+                                  style={"flex": "1", "textAlign": "left"}),
+                        html.I(id="news-arrow", className="bi bi-chevron-down",
+                               style={"fontSize": "20px"})
                     ], style={"display": "flex", "alignItems": "center", "justifyContent": "space-between"}),
                     id="collapse-news-button",
                     color="dark",
@@ -155,27 +197,28 @@ def get_security_layout():
         
         # SECTION: Data Tables
         dbc.Row([
-            dbc.Col(html.H4("📋 Security Performance & Correlation Summary", 
-                    style={"fontSize": "28px", "fontWeight": "600", "marginTop": "20px"}), width=12)
+            dbc.Col(html.H4("📋 Security Performance & Correlation Summary",
+                            style={"fontSize": "28px", "fontWeight": "600", "marginTop": "20px"}), width=12)
         ], className="mb-3"),
+        
         dbc.Row([
             dbc.Col([
                 dash_table.DataTable(
                     id='table-summary',
                     data=perf_summary_df.to_dict('records'),
                     columns=[{"name": i, "id": i} for i in perf_summary_df.columns],
-                    style_cell={'textAlign': 'left', 'padding': '12px', 'backgroundColor': '#303030', 
-                               'color': 'white', 'fontSize': '15px'},
-                    style_header={'backgroundColor': '#1e1e1e', 'fontWeight': 'bold', 
-                                 'border': '1px solid #444', 'textAlign': 'left', 'fontSize': '16px'},
+                    style_cell={'textAlign': 'left', 'padding': '12px', 'backgroundColor': '#303030',
+                                'color': 'white', 'fontSize': '15px'},
+                    style_header={'backgroundColor': '#1e1e1e', 'fontWeight': 'bold',
+                                  'border': '1px solid #444', 'textAlign': 'left', 'fontSize': '16px'},
                     style_data={'border': '1px solid #444'},
                     style_table={'overflowX': 'auto'},
                     style_data_conditional=[
-                        {'if': {'column_id': 'price_change_pct', 'filter_query': '{price_change_pct} > 0'}, 
+                        {'if': {'column_id': 'price_change_pct', 'filter_query': '{price_change_pct} > 0'},
                          'color': '#22c55e', 'fontWeight': 'bold'},
-                        {'if': {'column_id': 'price_change_pct', 'filter_query': '{price_change_pct} < 0'}, 
+                        {'if': {'column_id': 'price_change_pct', 'filter_query': '{price_change_pct} < 0'},
                          'color': '#ef4444', 'fontWeight': 'bold'},
-                        {'if': {'column_id': '1_day_ahead_significant', 'filter_query': '{1_day_ahead_significant} = true'}, 
+                        {'if': {'column_id': '1_day_ahead_significant', 'filter_query': '{1_day_ahead_significant} = true'},
                          'backgroundColor': '#1e3a1e'}
                     ],
                     export_format='csv',
@@ -186,19 +229,20 @@ def get_security_layout():
         ]),
         
         dbc.Row([
-            dbc.Col(html.H4("📈 Sentiment Score Distribution & Statistics", 
-                    style={"fontSize": "28px", "fontWeight": "600"}), width=12)
+            dbc.Col(html.H4("📈 Sentiment Score Distribution & Statistics",
+                            style={"fontSize": "28px", "fontWeight": "600"}), width=12)
         ], className="mb-3"),
+        
         dbc.Row([
             dbc.Col([
                 dash_table.DataTable(
                     id='table-sentiment',
                     data=sentiment_stats_df.to_dict('records'),
                     columns=[{"name": i, "id": i} for i in sentiment_stats_df.columns],
-                    style_cell={'textAlign': 'left', 'padding': '12px', 'backgroundColor': '#303030', 
-                               'color': 'white', 'fontSize': '15px'},
-                    style_header={'backgroundColor': '#1e1e1e', 'fontWeight': 'bold', 
-                                 'border': '1px solid #444', 'textAlign': 'left', 'fontSize': '16px'},
+                    style_cell={'textAlign': 'left', 'padding': '12px', 'backgroundColor': '#303030',
+                                'color': 'white', 'fontSize': '15px'},
+                    style_header={'backgroundColor': '#1e1e1e', 'fontWeight': 'bold',
+                                  'border': '1px solid #444', 'textAlign': 'left', 'fontSize': '16px'},
                     style_data={'border': '1px solid #444'},
                     style_table={'overflowX': 'auto'},
                     export_format='csv',
@@ -209,19 +253,20 @@ def get_security_layout():
         ]),
         
         dbc.Row([
-            dbc.Col(html.H4("🔗 Correlation Analysis Details", 
-                    style={"fontSize": "28px", "fontWeight": "600"}), width=12)
+            dbc.Col(html.H4("🔗 Correlation Analysis Details",
+                            style={"fontSize": "28px", "fontWeight": "600"}), width=12)
         ], className="mb-3"),
+        
         dbc.Row([
             dbc.Col([
                 dash_table.DataTable(
                     id='table-correlation',
                     data=corr_stats_df.to_dict('records'),
                     columns=[{"name": i, "id": i} for i in corr_stats_df.columns],
-                    style_cell={'textAlign': 'left', 'padding': '12px', 'backgroundColor': '#303030', 
-                               'color': 'white', 'fontSize': '15px'},
-                    style_header={'backgroundColor': '#1e1e1e', 'fontWeight': 'bold', 
-                                 'border': '1px solid #444', 'textAlign': 'left', 'fontSize': '16px'},
+                    style_cell={'textAlign': 'left', 'padding': '12px', 'backgroundColor': '#303030',
+                                'color': 'white', 'fontSize': '15px'},
+                    style_header={'backgroundColor': '#1e1e1e', 'fontWeight': 'bold',
+                                  'border': '1px solid #444', 'textAlign': 'left', 'fontSize': '16px'},
                     style_data={'border': '1px solid #444'},
                     style_table={'overflowX': 'auto'},
                     export_format='csv',
@@ -230,7 +275,9 @@ def get_security_layout():
                 )
             ], width=12, className="mb-4")
         ]),
+        
     ], fluid=True, style={"backgroundColor": "#1a1a1a", "color": "white", "paddingBottom": "30px"})
+
 
 def register_security_callbacks(app):
     # Collapse toggle callbacks WITH ARROW ANIMATION
@@ -273,6 +320,10 @@ def register_security_callbacks(app):
         Input("security-interval", "n_intervals")
     )
     def update_all(n):
+        # Calculate date ranges for charts
+        date_range_str = format_date_range_from_summary(summary_df)
+        trending_date_range = format_trending_date_range(trending_df)
+        
         # Summary card with enhanced styling
         total_news = summary_df["total_news_reddit"].sum()
         avg_sentiment = summary_df["avg_sentiment"].mean()
@@ -305,7 +356,7 @@ def register_security_callbacks(app):
             ], style={"color": "white", "padding": "20px"})
         ], style={"backgroundColor": "#212121", "marginBottom": "1rem", "border": "1px solid #444"})
         
-        # Trending Stocks Bubble Chart
+        # Trending Stocks Bubble Chart - UPDATED WITH DYNAMIC DATE RANGE
         trending_bubble_fig = px.scatter(
             trending_df,
             x="sentiment_score",
@@ -321,7 +372,7 @@ def register_security_callbacks(app):
                 "negative_mentions": True,
                 "category": True
             },
-            title="Trending Stocks: Social Buzz vs Sentiment",
+            title=f"Trending Stocks: Social Buzz vs Sentiment<br><sub>{trending_date_range}</sub>",
             labels={
                 "sentiment_score": "Sentiment Score (Bullish →)",
                 "total_mentions": "Total Mentions (Buzz)"
@@ -329,7 +380,6 @@ def register_security_callbacks(app):
             template="plotly_dark",
             height=500
         )
-        
         trending_bubble_fig.update_layout(
             title_font_size=22,
             font=dict(size=14),
@@ -337,11 +387,9 @@ def register_security_callbacks(app):
             yaxis=dict(title_font_size=16, tickfont_size=14),
             legend=dict(font_size=14)
         )
-        
-        trending_bubble_fig.add_hline(y=trending_df['total_mentions'].median(), 
+        trending_bubble_fig.add_hline(y=trending_df['total_mentions'].median(),
                                        line_dash="dash", line_color="gray", opacity=0.5)
         trending_bubble_fig.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
-        
         trending_bubble_fig.add_annotation(
             x=0.7, y=trending_df['total_mentions'].max() * 0.95,
             text="🚀 Hot & Bullish", showarrow=False,
@@ -353,14 +401,14 @@ def register_security_callbacks(app):
             font=dict(size=15, color="orange")
         )
         
-        # Sentiment vs Price Performance
+        # Sentiment vs Price Performance - UPDATED WITH DATE RANGE
         bubble_fig = px.scatter(
             detailed_df,
             x="avg_sentiment",
             y="price_change_pct",
             size="valid_data_points",
             color="ticker",
-            title="Sentiment vs Price Change by Security",
+            title=f"Sentiment vs Price Change by Security<br><sub>{date_range_str}</sub>",
             labels={
                 "avg_sentiment": "Average Sentiment Score",
                 "price_change_pct": "Price Change %"
@@ -375,13 +423,13 @@ def register_security_callbacks(app):
             legend=dict(font_size=14)
         )
         
-        # Risk vs Reward
+        # Risk vs Reward - UPDATED WITH DATE RANGE
         vol_return_fig = px.scatter(
             summary_df,
             x="return_volatility",
             y="avg_daily_return",
             color="ticker",
-            title="Volatility vs Average Daily Return",
+            title=f"Volatility vs Average Daily Return<br><sub>{date_range_str}</sub>",
             labels={
                 "return_volatility": "Return Volatility (Risk)",
                 "avg_daily_return": "Average Daily Return (%)"
@@ -404,7 +452,7 @@ def register_security_callbacks(app):
             line=dict(color='lightgray', dash='dash')
         )
         
-        # Correlation Analysis (Collapsible)
+        # Correlation Analysis (Collapsible) - UPDATED WITH DATE RANGE
         corr_lags = ["same_day_corr", "1_day_ahead_corr", "2_day_ahead_corr", "3_day_ahead_corr", "5_day_ahead_corr"]
         corr_data = summary_df.melt(id_vars=["ticker"], value_vars=corr_lags, var_name="Lag", value_name="Correlation")
         grouped_bar_fig = px.bar(
@@ -413,7 +461,7 @@ def register_security_callbacks(app):
             y="Correlation",
             color="Lag",
             barmode="group",
-            title="Sentiment-Price Correlation by Time Horizon",
+            title=f"Sentiment-Price Correlation by Time Horizon<br><sub>{date_range_str}</sub>",
             labels={
                 "ticker": "Security Ticker",
                 "Correlation": "Correlation Coefficient"
@@ -428,12 +476,12 @@ def register_security_callbacks(app):
             legend=dict(font_size=14)
         )
         
-        # News Coverage (Collapsible)
+        # News Coverage (Collapsible) - UPDATED WITH DATE RANGE
         bar_fig = px.bar(
             summary_df,
             x="ticker",
             y="total_news_reddit",
-            title="Total Media Coverage Volume",
+            title=f"Total Media Coverage Volume<br><sub>{date_range_str}</sub>",
             labels={
                 "ticker": "Security Ticker",
                 "total_news_reddit": "Total Articles & Posts"
