@@ -32,5 +32,5 @@ register_security_callbacks(app)
 
 if __name__ == "__main__":
     # app.run(port=8052, debug=False)
-    app.run(jupyter_mode='external', debug=True, port=8052)
+    app.run(jupyter_mode='inline', debug=True, port=8052)
 
