@@ -10,11 +10,12 @@ load_dotenv()
 
 class Config:
     # API Keys
-    NEWSAPI_KEY = os.getenv('NEWSAPI_KEY')
-    REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
-    REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
-    REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'FinancialSentimentBot/1.0')
-    STOCKNEWS_API_KEY = userdata.get('OPENAI_API_KEY')
+    NEWSAPI_KEY = userdata.get('NEWSAPI_KEY')
+    REDDIT_CLIENT_ID = userdata.get('REDDIT_CLIENT_ID')
+    REDDIT_CLIENT_SECRET = userdata.get('REDDIT_CLIENT_SECRET')
+    STOCKNEWS_API_KEY = userdata.get('STOCKNEWS_API_KEY')
+    REDDIT_USER_AGENT = 'Sentiment-Analysis-G1/1.0'
+        
 
     # Data Collection Settings
     DEFAULT_NEWS_DAYS_BACK = 30
