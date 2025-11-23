@@ -14,8 +14,8 @@ class Config:
     REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
     REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
     REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'FinancialSentimentBot/1.0')
-    STOCKNEWS_API_KEY = os.getenv('STOCKNEWS_API_KEY')
-    
+    STOCKNEWS_API_KEY = userdata.get('OPENAI_API_KEY')
+
     # Data Collection Settings
     DEFAULT_NEWS_DAYS_BACK = 30
     DEFAULT_REDDIT_DAYS_BACK = 30
